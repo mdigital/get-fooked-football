@@ -46,7 +46,7 @@ export default async function HotOrNotPage() {
       <div className="space-y-4">
         <div className="brutal-card">
           <h1 className="text-xl font-bold">Hot or Not</h1>
-          <p className="text-sm opacity-70">Need at least 2 photos before this works. Get uploading.</p>
+          <p className="text-sm opacity-100">Need at least 2 photos before this works. Get uploading.</p>
           <Link href="/inswap" className="mt-3 inline-block brutal-link hover:underline">← back to InSwap</Link>
         </div>
       </div>
@@ -59,7 +59,7 @@ export default async function HotOrNotPage() {
     <div className="space-y-4">
       <div className="brutal-card">
         <h1 className="text-xl font-bold">Hot or Not — tiebreaker round</h1>
-        <p className="text-sm opacity-70">Pick the better one. Each click is a head-to-head vote that breaks thumbs-up ties.</p>
+        <p className="text-sm opacity-100">Pick the better one. Each click is a head-to-head vote that breaks thumbs-up ties.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {[a, b].map((photo, idx) => {
@@ -74,7 +74,7 @@ export default async function HotOrNotPage() {
                 <img src={String(photo.file_path)} alt={(photo.caption as string) ?? ''} className="aspect-square w-full object-cover" />
                 <div className="bg-white p-3 text-left text-sm dark:bg-white/5">
                   <div className="font-medium">{String(photo.user_name)}</div>
-                  {photo.caption ? <div className="opacity-70">{String(photo.caption)}</div> : null}
+                  {photo.caption ? <div className="opacity-100">{String(photo.caption)}</div> : null}
                 </div>
               </button>
             </form>

@@ -16,7 +16,7 @@ export default async function PolymarketWidget() {
     return (
       <div className="brutal-card">
         <h2 className="brutal-h2">Polymarket odds</h2>
-        <p className="text-sm opacity-70 mt-2">Couldn't reach Polymarket. Try again in a minute.</p>
+        <p className="text-sm opacity-100 mt-2">Couldn't reach Polymarket. Try again in a minute.</p>
       </div>
     );
   }
@@ -39,7 +39,7 @@ export default async function PolymarketWidget() {
           <li key={o.slug} className="grid grid-cols-[1.25rem_minmax(0,1fr)_auto_auto] items-center gap-2 border-[2px] border-current px-2 py-1">
             <span className="block h-3 w-3" style={{ background: SWATCH[i % SWATCH.length] }} />
             <span className="truncate text-sm font-bold">{o.name}</span>
-            <span className="text-xs opacity-70 tabular-nums">{fmtMoney(o.volume)}</span>
+            <span className="text-xs opacity-100 tabular-nums">{fmtMoney(o.volume)}</span>
             <span className="text-base font-bold tabular-nums">{(o.yesPrice * 100).toFixed(1)}%</span>
           </li>
         ))}

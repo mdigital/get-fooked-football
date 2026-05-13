@@ -1,5 +1,7 @@
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/liberation-mono@5.0.18/400.css');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/liberation-mono@5.0.18/700.css');
+/* IBM Plex Mono — same terminal vibe as Liberation Mono but with a much
+   cleaner render at body sizes. If we ever want something more retro try
+   VT323; for more programmer-y try JetBrains Mono. */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -31,9 +33,9 @@ body {
   background: var(--bg);
   color: var(--fg);
   min-height: 100%;
-  font-family: 'Liberation Mono', 'DejaVu Sans Mono', 'Menlo', ui-monospace, monospace;
-  -webkit-font-smoothing: none;
-  font-smooth: never;
+  font-family: 'IBM Plex Mono', 'DejaVu Sans Mono', 'Menlo', ui-monospace, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
 }
 

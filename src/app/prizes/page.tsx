@@ -33,7 +33,7 @@ export default async function PrizesPage() {
     <div className="space-y-6">
       <div className="brutal-card">
         <h1 className="brutal-h1">[ Prizes ]</h1>
-        <p className="text-sm opacity-80 mt-2">
+        <p className="text-sm opacity-100 mt-2">
           ${buyIn} buy-in · {playerCount} player{playerCount === 1 ? '' : 's'} ·{' '}
           <strong>${pot.toFixed(0)} pot</strong>. Prize amounts are percentages of the pot, so they scale with the crew.
         </p>
@@ -57,11 +57,11 @@ export default async function PrizesPage() {
                   <li key={p.id} className="flex items-start gap-3 border-[3px] border-current p-3">
                     <div className="min-w-[5rem] text-center">
                       <div className="text-2xl font-bold tabular-nums">{p.pctNum.toFixed(p.pctNum % 1 === 0 ? 0 : 1)}%</div>
-                      <div className="text-xs opacity-70">= ${amount}</div>
+                      <div className="text-xs opacity-100">= ${amount}</div>
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="font-bold uppercase">{p.name}</div>
-                      <div className="text-sm opacity-80">{p.description}</div>
+                      <div className="text-sm opacity-100">{p.description}</div>
                       {p.awardedUserId && <div className="mt-1 text-xs font-bold uppercase">[ Awarded ]</div>}
                     </div>
                   </li>

@@ -3,6 +3,7 @@ import { db, schema } from '@/db/client';
 import { sql } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { buildLeaderboard } from '@/lib/leaderboards';
+import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import PolymarketWidget from './_polymarket-widget';
 import LeaderboardWidget from './_leaderboard-widget';
 
@@ -38,7 +39,7 @@ export default async function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="brutal-h1">Get Fooked ⚽</h1>
-            <p className="opacity-80 mt-2">
+            <p className="opacity-100 mt-2">
               2026 World Cup tipping for cunts. {(fixtureCount.rows[0] as { c: number }).c} fixtures loaded.{' '}
               {(teamCount.rows[0] as { c: number }).c} teams to win.
             </p>
@@ -61,7 +62,7 @@ export default async function HomePage() {
         </div>
         <ul className="mt-3 grid gap-2 md:grid-cols-2">
           {upcoming.rows.length === 0 && (
-            <li className="opacity-60">No fixtures yet — run the seed script.</li>
+            <li className="opacity-100">No fixtures yet — run the seed script.</li>
           )}
           {upcoming.rows.map((row, i) => {
             const r = row as Record<string, unknown>;
@@ -74,21 +75,15 @@ export default async function HomePage() {
                 href={`/match/${r.id}`}
                 className="flex items-center justify-between gap-3 border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
               >
-                <span className="text-xs font-bold uppercase opacity-70 w-14 truncate">
+                <span className="text-xs font-bold uppercase w-14 truncate">
                   {r.stage as string}
                   {r.group_name ? ` ${r.group_name}` : ''}
                 </span>
                 <span className="flex-1 truncate font-bold">
-                  {home} <span className="opacity-60">vs</span> {away}
+                  {home} <span>vs</span> {away}
                 </span>
-                <span className="text-xs tabular-nums opacity-70 whitespace-nowrap">
-                  {date.toLocaleString(undefined, {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <span className="text-xs tabular-nums whitespace-nowrap">
+                  {fmtNzDateTime(date)} {nzZoneAbbr(date)}
                 </span>
               </Link>
             );

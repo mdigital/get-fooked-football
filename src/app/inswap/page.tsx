@@ -55,7 +55,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
     <div className="space-y-6">
       <div className="brutal-card">
         <h1 className="text-xl font-bold">The InSwap League 📸</h1>
-        <p className="text-sm opacity-70">
+        <p className="text-sm opacity-100">
           Photo competition. Upload your best face-swap (or whatever the theme is). Everyone gives thumbs up to as many as they like.
           If the top is a tie, head over to the <Link className="brutal-link hover:underline" href="/inswap/hot-or-not">Hot-or-Not playoff</Link> to break it.
         </p>
@@ -74,7 +74,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
             <input className="brutal-input" name="caption" placeholder="Caption (optional)" maxLength={200} />
             <button className="brutal-btn-primary" type="submit">Upload</button>
           </form>
-          <p className="mt-2 text-xs opacity-60">JPG / PNG / WEBP / GIF, max 6MB. You can upload multiple.</p>
+          <p className="mt-2 text-xs opacity-100">JPG / PNG / WEBP / GIF, max 6MB. You can upload multiple.</p>
         </div>
       ) : (
         <div className="brutal-card">
@@ -89,7 +89,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
           <h2 className="text-lg font-semibold">Standings</h2>
           <Link className="text-sm brutal-link hover:underline" href="/inswap/hot-or-not">Hot-or-Not playoff →</Link>
         </div>
-        {standings.length === 0 && <p className="mt-2 opacity-60">No photos yet — be first.</p>}
+        {standings.length === 0 && <p className="mt-2 opacity-100">No photos yet — be first.</p>}
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {standings.map((p) => {
             const mine = session.userId === p.userId;
@@ -100,9 +100,9 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
                 <img src={p.filePath} alt={p.caption ?? 'InSwap entry'} className="aspect-square w-full object-cover" />
                 <div className="p-3 text-sm">
                   <div className="font-medium">{p.userName}</div>
-                  {p.caption && <div className="opacity-70">{p.caption}</div>}
+                  {p.caption && <div className="opacity-100">{p.caption}</div>}
                   <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs opacity-60">
+                    <span className="text-xs opacity-100">
                       H2H {p.hotOrNotWins}–{p.hotOrNotLosses}
                     </span>
                     <ThumbButton
@@ -115,7 +115,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
                   {(mine || session.isAdmin) && (
                     <form action={deletePhoto} className="mt-2">
                       <input type="hidden" name="photo_id" value={p.photoId} />
-                      <button className="text-xs opacity-60 hover:opacity-100 hover:text-red-600" type="submit">
+                      <button className="text-xs opacity-100 hover:opacity-100 hover:text-red-600" type="submit">
                         delete
                       </button>
                     </form>

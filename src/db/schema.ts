@@ -40,11 +40,28 @@ export const teams = pgTable(
     fifaRank: integer('fifa_rank').notNull().default(999),
     population: integer('population').notNull().default(0),
     sheep: integer('sheep').notNull().default(0),
+    // Polymarket's "yes" price for this team to win the World Cup (0..1).
+    // Populated by the admin "Sync Polymarket" action; used by the draw to
+    // balance teams across players and ensure each player gets one top seed.
+    polymarketPrice: numeric('polymarket_price', { precision: 6, scale: 4 }).notNull().default('0'),
     // freeform extra stats so adding "by avg height" etc later is just a row
     stats: jsonb('stats').notNull().default({}),
   },
   (t) => ({
     codeIdx: uniqueIndex('teams_code_idx').on(t.code),
+  }),
+);
+
+export const teamPreferences = pgTable(
+  'team_preferences',
+  {
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    rank: integer('rank').notNull(), // 1, 2, 3
+    teamId: integer('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.userId, t.rank] }),
   }),
 );
 
@@ -189,3 +206,4 @@ export type Prize = typeof prizes.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type ScoreEdit = typeof scoreEdits.$inferSelect;
 export type MatchSticker = typeof matchStickers.$inferSelect;
+export type TeamPreference = typeof teamPreferences.$inferSelect;

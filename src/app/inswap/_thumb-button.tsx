@@ -62,7 +62,7 @@ export default function ThumbButton({
       title={error ?? undefined}
       className={`inline-flex items-center gap-1 border-[3px] border-black px-3 py-1 text-sm font-bold shadow-brutal-sm transition-transform active:translate-x-[1px] active:translate-y-[1px] active:shadow-none ${
         voted ? 'bg-neon-lime' : 'bg-white hover:-translate-y-[1px]'
-      } ${pending ? 'opacity-70' : ''}`}
+      } ${pending ? 'opacity-100' : ''}`}
     >
       👍 {count}
     </button>

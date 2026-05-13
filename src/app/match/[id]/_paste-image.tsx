@@ -74,7 +74,7 @@ export default function PasteImageField() {
             <span className="text-xs">{filename}</span>
           </div>
         ) : (
-          <span className="text-sm opacity-70">⇩ Drag, drop, or paste an image here (⌘V works for iPhone Stickers copy-paste)</span>
+          <span className="text-sm opacity-100">⇩ Drag, drop, or paste an image here (⌘V works for iPhone Stickers copy-paste)</span>
         )}
       </div>
     </div>

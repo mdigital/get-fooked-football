@@ -15,6 +15,7 @@ export function makeTeam(over: Partial<Team> & { id: number; name: string }): Te
     fifaRank: over.fifaRank ?? 50,
     population: over.population ?? 10_000_000,
     sheep: over.sheep ?? 0,
+    polymarketPrice: over.polymarketPrice ?? '0',
     stats: (over.stats ?? {}) as Team['stats'],
   };
 }

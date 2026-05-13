@@ -58,28 +58,28 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
     <div className="mx-auto max-w-md space-y-4">
       <div className="brutal-card">
         <h1 className="text-xl font-bold">Create your account</h1>
-        <p className="text-sm opacity-70">You’ll need a valid invite token. The admin generates these on the admin page.</p>
+        <p className="text-sm opacity-100">You’ll need a valid invite token. The admin generates these on the admin page.</p>
         {errMsg && <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-red-700">{errMsg}</p>}
         <form action={register} className="mt-4 space-y-3">
           <label className="block">
-            <span className="text-sm opacity-70">Invite token</span>
+            <span className="text-sm opacity-100">Invite token</span>
             <input className="brutal-input mt-1 font-mono" name="token" defaultValue={token} required />
           </label>
           <label className="block">
-            <span className="text-sm opacity-70">Display name</span>
+            <span className="text-sm opacity-100">Display name</span>
             <input className="brutal-input mt-1" name="name" required autoComplete="name" />
           </label>
           <label className="block">
-            <span className="text-sm opacity-70">Email</span>
+            <span className="text-sm opacity-100">Email</span>
             <input className="brutal-input mt-1" name="email" type="email" required autoComplete="email" />
           </label>
           <label className="block">
-            <span className="text-sm opacity-70">Password (8+ chars)</span>
+            <span className="text-sm opacity-100">Password (8+ chars)</span>
             <input className="brutal-input mt-1" name="password" type="password" required minLength={8} autoComplete="new-password" />
           </label>
           <button className="brutal-btn-primary w-full" type="submit">Create account</button>
         </form>
-        <p className="mt-3 text-sm opacity-70">
+        <p className="mt-3 text-sm opacity-100">
           Already registered? <Link href="/login" className="brutal-link hover:underline">Sign in</Link>.
         </p>
       </div>

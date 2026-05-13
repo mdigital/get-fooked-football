@@ -7,7 +7,7 @@ export default function HelpPage() {
     <div className="space-y-6">
       <div className="brutal-card">
         <h1 className="brutal-h1">How it works</h1>
-        <p className="text-sm opacity-70 mt-2">
+        <p className="text-sm opacity-100 mt-2">
           The 30-second tour of Get Fooked. If you're stuck on something, ping whoever invited you.
         </p>
       </div>

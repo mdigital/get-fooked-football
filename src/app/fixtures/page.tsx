@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { db, schema } from '@/db/client';
 import { asc } from 'drizzle-orm';
+import { fmtNzDay, fmtNzTime, nzZoneAbbr } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,7 +22,7 @@ export default async function FixturesPage() {
 
   const byDay = new Map<string, typeof fixtures>();
   for (const f of fixtures) {
-    const day = new Date(f.kickoff).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    const day = fmtNzDay(f.kickoff);
     const arr = byDay.get(day) ?? [];
     arr.push(f);
     byDay.set(day, arr);
@@ -30,28 +31,35 @@ export default async function FixturesPage() {
   return (
     <div className="space-y-6">
       <div className="brutal-card">
-        <h1 className="text-xl font-bold">Fixture Calendar</h1>
-        <p className="text-sm opacity-70">All 104 matches of the 2026 World Cup. Times in your local timezone.</p>
+        <h1 className="brutal-h1">Fixture Calendar</h1>
+        <p className="text-sm mt-2">All 104 matches of the 2026 World Cup. Times shown in NZ time.</p>
       </div>
 
       {[...byDay.entries()].map(([day, list]) => (
         <section key={day} className="brutal-card">
-          <h2 className="mb-3 text-base font-semibold opacity-80">{day}</h2>
+          <h2 className="brutal-h2 mb-3">{day}</h2>
           <ul className="space-y-1">
             {list.map((f) => {
               const home = f.homeTeamId ? teamById.get(f.homeTeamId) : undefined;
               const away = f.awayTeamId ? teamById.get(f.awayTeamId) : undefined;
-              const time = new Date(f.kickoff).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+              const time = fmtNzTime(f.kickoff);
+              const zone = nzZoneAbbr(f.kickoff);
               return (
-                <Link key={f.id} href={`/match/${f.id}`} className="grid grid-cols-[5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-black/5">
-                  <span className="text-xs tabular-nums opacity-70">{time}</span>
+                <Link
+                  key={f.id}
+                  href={`/match/${f.id}`}
+                  className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 border-[2px] border-current px-2 py-1.5 hover:bg-cga-cyan hover:text-cga-black"
+                >
+                  <span className="text-xs tabular-nums font-bold whitespace-nowrap">
+                    {time} {zone}
+                  </span>
                   <span className="truncate">
-                    <span className="mr-2 inline-block min-w-[6rem] rounded bg-black/5 px-2 py-0.5 text-xs uppercase opacity-70">
+                    <span className="mr-2 inline-block min-w-[6rem] border-[2px] border-current px-2 py-0.5 text-xs uppercase font-bold">
                       {STAGE_LABEL[f.stage] ?? f.stage}
                       {f.groupName ? ` ${f.groupName}` : ''}
                     </span>
                     {home ? `${home.flag} ${home.name}` : (f.homeLabel ?? 'TBD')}
-                    <span className="px-2 opacity-50">vs</span>
+                    <span className="px-2">vs</span>
                     {away ? `${away.flag} ${away.name}` : (f.awayLabel ?? 'TBD')}
                   </span>
                   <span className="text-sm tabular-nums">
@@ -60,7 +68,7 @@ export default async function FixturesPage() {
                         {f.homeScore} – {f.awayScore}
                       </strong>
                     ) : (
-                      <span className="opacity-50">—</span>
+                      <span>—</span>
                     )}
                   </span>
                 </Link>

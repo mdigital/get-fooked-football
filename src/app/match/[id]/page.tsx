@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session';
 import { submitScoreEdit, getEditHistory } from '@/lib/score-edits';
 import { saveUploadedImage } from '@/lib/uploads';
 import { pointsForFixture } from '@/lib/scoring';
+import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import PasteImageField from './_paste-image';
 
 export const dynamic = 'force-dynamic';
@@ -160,11 +161,11 @@ export default async function MatchPage({
         <Link href="/fixtures" className="text-sm font-bold underline">
           ← All fixtures
         </Link>
-        <div className="mt-2 text-xs font-bold uppercase tracking-widest opacity-70">
+        <div className="mt-2 text-xs font-bold uppercase tracking-widest">
           {STAGE_LABEL[fixture.stage] ?? fixture.stage}
           {fixture.groupName ? ` · ${fixture.groupName}` : ''}
           {' · '}
-          {new Date(fixture.kickoff).toLocaleString(undefined, { weekday: 'long', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+          {fmtNzDateTime(fixture.kickoff)} {nzZoneAbbr(fixture.kickoff)}
         </div>
         <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-4">
           <div className="text-right text-2xl font-black">
@@ -174,7 +175,7 @@ export default async function MatchPage({
           <div className="text-center text-5xl font-black tabular-nums">
             {fixture.status === 'FINISHED' ? `${fixture.homeScore}–${fixture.awayScore}` : 'vs'}
             {fixture.homePens != null && fixture.awayPens != null && (
-              <div className="text-base font-bold opacity-70">
+              <div className="text-base font-bold opacity-100">
                 pens {fixture.homePens}–{fixture.awayPens}
               </div>
             )}
@@ -195,7 +196,7 @@ export default async function MatchPage({
 
       <div className="brutal-card">
         <h2 className="brutal-h2">Sticker board</h2>
-        <p className="text-sm opacity-70">
+        <p className="text-sm opacity-100">
           Slap reactions on this match. <strong>iPhone tip:</strong> long-press a sticker in Messages or Photos →
           “Copy”, then paste it here.
         </p>
@@ -223,7 +224,7 @@ export default async function MatchPage({
             <form action={addImageSticker} encType="multipart/form-data" className="brutal-card-inner">
               <input type="hidden" name="fixture_id" value={id} />
               <div className="text-xs font-bold uppercase">Image sticker</div>
-              <p className="mt-1 text-xs opacity-70">
+              <p className="mt-1 text-xs opacity-100">
                 Paste an image (works with iPhone Stickers App after copying) or pick a file. PNG/JPG/WEBP/GIF, 6MB max.
               </p>
               <PasteImageField />
@@ -240,7 +241,7 @@ export default async function MatchPage({
 
       <div className="brutal-card">
         <h2 className="brutal-h2">Update the score</h2>
-        <p className="text-sm opacity-70">
+        <p className="text-sm opacity-100">
           Anyone in the league can post a result — but every edit is logged below, so don’t go full Fergie time.
         </p>
         {session.userId ? (
@@ -263,7 +264,7 @@ export default async function MatchPage({
             </select>
             {knockout && (
               <>
-                <div className="col-span-full text-xs font-bold uppercase opacity-70">Extra time / penalties (if needed)</div>
+                <div className="col-span-full text-xs font-bold uppercase opacity-100">Extra time / penalties (if needed)</div>
                 <div className="flex items-center gap-2">
                   <label className="text-sm">ET home</label>
                   <input className="brutal-input w-16 text-center" name="home_et" defaultValue={fixture.homeScoreEt ?? ''} inputMode="numeric" />
@@ -310,8 +311,8 @@ export default async function MatchPage({
                   {h.home_pens != null && h.away_pens != null ? ` (pens ${String(h.home_pens)}–${String(h.away_pens)})` : ''}
                 </span>
                 <span className="brutal-pill text-xs">{String(h.status)}</span>
-                {h.note ? <span className="opacity-70">“{String(h.note)}”</span> : null}
-                <span className="ml-auto text-xs opacity-60">{new Date(String(h.created_at)).toLocaleString()}</span>
+                {h.note ? <span className="opacity-100">“{String(h.note)}”</span> : null}
+                <span className="ml-auto text-xs">{fmtNzDateTime(String(h.created_at))} {nzZoneAbbr(String(h.created_at))}</span>
               </li>
             ))}
           </ul>

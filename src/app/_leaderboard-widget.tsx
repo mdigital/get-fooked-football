@@ -60,11 +60,11 @@ export default function LeaderboardWidget({
           ))}
         </select>
       </div>
-      <p className="text-xs opacity-70 mt-1">{meta.tagline}</p>
+      <p className="text-xs opacity-100 mt-1">{meta.tagline}</p>
 
-      <div className={`mt-3 transition-opacity ${pending ? 'opacity-60' : 'opacity-100'}`}>
+      <div className={`mt-3 transition-opacity ${pending ? 'opacity-100' : 'opacity-100'}`}>
         {rows.length === 0 ? (
-          <p className="opacity-60">Once the draw is done and matches start, scores show up here.</p>
+          <p className="opacity-100">Once the draw is done and matches start, scores show up here.</p>
         ) : (
           <ol className="space-y-1">
             {rows.slice(0, 5).map((row, i) => (
@@ -72,7 +72,7 @@ export default function LeaderboardWidget({
                 <span className="font-bold tabular-nums">{i + 1}.</span>
                 <span className="truncate">{row.name}</span>
                 <span className="text-sm font-bold tabular-nums">
-                  {row.weightedPoints} <span className="text-xs opacity-70">{meta.unit}</span>
+                  {row.weightedPoints} <span className="text-xs opacity-100">{meta.unit}</span>
                 </span>
               </li>
             ))}

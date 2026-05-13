@@ -12,6 +12,7 @@ export const metadata: Metadata = {
 
 const NAV: Array<[string, string]> = [
   ['Fixtures', '/fixtures'],
+  ['Preferences', '/preferences'],
   ['My Teams', '/teams'],
   ['Boards', '/leaderboards'],
   ['InSwap', '/inswap'],
@@ -51,7 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
             <Link href="/" className="flex items-baseline gap-2">
               <span className="text-xl md:text-2xl font-bold uppercase tracking-tight">▓▒░ GET FOOKED</span>
-              <span className="text-xs font-bold opacity-70">⚽ '26</span>
+              <span className="text-xs font-bold opacity-100">⚽ '26</span>
             </Link>
             <nav className="hidden gap-1 md:flex">
               {NAV.map(([label, href]) => (
@@ -96,7 +97,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs">
           <span className="brutal-pill">GET FOOKED</span>
-          <span className="ml-2 opacity-70">═══ WC2026 ═══ built for friends, not bookies</span>
+          <span className="ml-2 opacity-100">═══ WC2026 ═══ built for friends, not bookies</span>
         </footer>
       </body>
     </html>

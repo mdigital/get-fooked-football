@@ -28,9 +28,9 @@ export default async function PolymarketPage() {
       <div className="space-y-4">
         <div className="brutal-card">
           <h1 className="brutal-h1">2026 World Cup Winner — Polymarket</h1>
-          <p className="text-sm opacity-70 mt-2">Live odds from polymarket.com</p>
+          <p className="text-sm opacity-100 mt-2">Live odds from polymarket.com</p>
           <p className="brutal-error mt-3">Couldn't load Polymarket data: {error}</p>
-          <p className="text-sm opacity-70 mt-2">
+          <p className="text-sm opacity-100 mt-2">
             If Polymarket renamed the event, set <code>POLYMARKET_EVENT_SLUG</code> in your env vars to the new slug.
           </p>
         </div>
@@ -53,7 +53,7 @@ export default async function PolymarketPage() {
       <section className="brutal-card">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <div className="text-xs font-bold uppercase tracking-widest opacity-70">Sports · Soccer</div>
+            <div className="text-xs font-bold uppercase tracking-widest opacity-100">Sports · Soccer</div>
             <h1 className="brutal-h1">{event.title}</h1>
           </div>
           <a
@@ -69,7 +69,7 @@ export default async function PolymarketPage() {
           {top4.map((o, i) => (
             <span key={o.slug} className="inline-flex items-center gap-2 font-bold">
               <span className="h-2 w-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-              {o.name} <span className="opacity-70 tabular-nums">{(o.yesPrice * 100).toFixed(1)}%</span>
+              {o.name} <span className="opacity-100 tabular-nums">{(o.yesPrice * 100).toFixed(1)}%</span>
             </span>
           ))}
         </div>
@@ -101,7 +101,7 @@ export default async function PolymarketPage() {
           </svg>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs opacity-70">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs opacity-100">
           <span>{fmtMoney(event.totalVolume)} Vol.</span>
           {event.endDate && <span>Resolves {new Date(event.endDate).toLocaleDateString()}</span>}
         </div>
@@ -119,7 +119,7 @@ export default async function PolymarketPage() {
               )}
               <div>
                 <div className="font-bold">{o.name}</div>
-                <div className="text-xs opacity-60">{fmtMoney(o.volume)} Vol.</div>
+                <div className="text-xs opacity-100">{fmtMoney(o.volume)} Vol.</div>
               </div>
               <div className="text-2xl font-black tabular-nums">{Math.round(o.yesPrice * 100)}%</div>
               <a
@@ -143,7 +143,7 @@ export default async function PolymarketPage() {
         </ul>
       </section>
 
-      <p className="text-center text-xs opacity-60">
+      <p className="text-center text-xs opacity-100">
         Live odds and chart sourced from Polymarket's public API · cached for 60s · Get Fooked is a tipping game, not a brokerage.
       </p>
     </div>

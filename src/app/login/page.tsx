@@ -31,21 +31,21 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <div className="mx-auto max-w-md space-y-4">
       <div className="brutal-card">
         <h1 className="text-xl font-bold">Sign in</h1>
-        <p className="text-sm opacity-70">Don’t have an account? You need an invite. Ask whoever roped you in.</p>
+        <p className="text-sm opacity-100">Don’t have an account? You need an invite. Ask whoever roped you in.</p>
         {error === 'bad' && <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-red-700">Wrong email or password.</p>}
         {error === 'missing' && <p className="mt-2 rounded-lg bg-red-500/10 px-3 py-2 text-red-700">Fill in both fields.</p>}
         <form action={login} className="mt-4 space-y-3">
           <label className="block">
-            <span className="text-sm opacity-70">Email</span>
+            <span className="text-sm opacity-100">Email</span>
             <input className="brutal-input mt-1" name="email" type="email" required autoComplete="email" />
           </label>
           <label className="block">
-            <span className="text-sm opacity-70">Password</span>
+            <span className="text-sm opacity-100">Password</span>
             <input className="brutal-input mt-1" name="password" type="password" required autoComplete="current-password" />
           </label>
           <button className="brutal-btn-primary w-full" type="submit">Sign in</button>
         </form>
-        <p className="mt-3 text-sm opacity-70">
+        <p className="mt-3 text-sm opacity-100">
           Have an invite link? <Link href="/register" className="brutal-link hover:underline">Register here</Link>.
         </p>
       </div>

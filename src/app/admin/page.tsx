@@ -5,7 +5,9 @@ import { asc, desc, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { generateInviteToken } from '@/lib/auth';
 import { runRandomDraw } from '@/lib/draw';
+import { runPreferenceDraw, syncPolymarketPrices } from '@/lib/preference-draw-db';
 import { submitScoreEdit } from '@/lib/score-edits';
+import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,8 +43,25 @@ async function doDraw(formData: FormData) {
   await requireAdmin();
   const seedRaw = String(formData.get('seed') ?? '').trim();
   const seed = seedRaw ? Number.parseInt(seedRaw, 10) : undefined;
-  await runRandomDraw(Number.isFinite(seed) ? seed : undefined);
+  const mode = String(formData.get('mode') ?? 'preference');
+  if (mode === 'random') {
+    await runRandomDraw(Number.isFinite(seed) ? seed : undefined);
+  } else {
+    await runPreferenceDraw(Number.isFinite(seed) ? seed : undefined);
+  }
   redirect('/admin#draw');
+}
+
+async function doPolymarketSync() {
+  'use server';
+  await requireAdmin();
+  try {
+    const r = await syncPolymarketPrices();
+    redirect(`/admin?synced=${r.matched.length}&missing=${r.unmatched.length}#draw`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'sync failed';
+    redirect(`/admin?err=${encodeURIComponent(msg)}#draw`);
+  }
 }
 
 async function setFixtureResult(formData: FormData) {
@@ -130,7 +149,7 @@ export default async function AdminPage() {
     <div className="space-y-8">
       <div className="brutal-card">
         <h1 className="text-xl font-bold">Admin</h1>
-        <p className="text-sm opacity-70">
+        <p className="text-sm opacity-100">
           Invite players, run the draw, enter results, award prizes. Take it easy with the “run draw” button —
           it replaces everyone’s existing teams.
         </p>
@@ -140,7 +159,7 @@ export default async function AdminPage() {
       <section id="players" className="brutal-card">
         <h2 className="mb-3 text-lg font-semibold">Players ({users.length})</h2>
         <table className="w-full text-left text-sm table-row-hover">
-          <thead className="text-xs uppercase opacity-60">
+          <thead className="text-xs uppercase opacity-100">
             <tr>
               <th className="py-2">Name</th>
               <th>Email</th>
@@ -153,7 +172,7 @@ export default async function AdminPage() {
             {users.map((u) => (
               <tr key={u.id} className="border-t border-black/5">
                 <td className="py-2 font-medium">{u.name} {u.isAdmin && <span className="ml-1 rounded bg-neon-lime px-1.5 py-0.5 text-xs text-white">admin</span>}</td>
-                <td className="opacity-70">{u.email}</td>
+                <td className="opacity-100">{u.email}</td>
                 <td className="text-right tabular-nums">{assignmentsByUser.get(u.id) ?? 0}</td>
                 <td className="text-right">
                   <form action={togglePaid} className="inline-flex items-center gap-1">
@@ -162,7 +181,7 @@ export default async function AdminPage() {
                     <button className="brutal-btn-ghost text-xs" type="submit" aria-label="save">save</button>
                   </form>
                 </td>
-                <td className="text-xs opacity-60">{new Date(u.createdAt).toLocaleDateString()}</td>
+                <td className="text-xs opacity-100">{new Date(u.createdAt).toLocaleDateString()}</td>
               </tr>
             ))}
           </tbody>
@@ -177,14 +196,14 @@ export default async function AdminPage() {
           <button className="brutal-btn-primary" type="submit">Generate invite token</button>
         </form>
         <ul className="space-y-1">
-          {invites.length === 0 && <li className="opacity-60">No invites yet.</li>}
+          {invites.length === 0 && <li className="opacity-100">No invites yet.</li>}
           {invites.map((inv) => {
             const base = '';
             const link = `${base}/register?token=${encodeURIComponent(inv.token)}`;
             return (
               <li key={inv.token} className="flex flex-wrap items-center gap-2 rounded-lg border border-black/5 px-3 py-2">
                 <code className="break-all text-xs">{inv.token}</code>
-                <span className="text-xs opacity-60">{inv.note ?? '—'}</span>
+                <span className="text-xs opacity-100">{inv.note ?? '—'}</span>
                 {inv.usedByUserId ? (
                   <span className="rounded bg-black/5 px-2 py-0.5 text-xs">used by {userById.get(inv.usedByUserId)?.name ?? '?'}</span>
                 ) : (
@@ -208,35 +227,54 @@ export default async function AdminPage() {
 
       {/* Draw ------------------------------------------------------------- */}
       <section id="draw" className="brutal-card">
-        <h2 className="mb-3 text-lg font-semibold">Run the draw</h2>
-        <p className="mb-3 text-sm opacity-70">
-          Randomly distributes the {teams.length} teams across the {users.length} players. Currently each player would get{' '}
+        <h2 className="brutal-h2">Run the draw</h2>
+        <p className="mt-3 text-sm">
+          Each player will get{' '}
           <strong>{users.length > 0 ? Math.floor(teams.length / users.length) : '—'}</strong> teams, with{' '}
           <strong>{users.length > 0 ? teams.length - Math.floor(teams.length / users.length) * users.length : '—'}</strong> teams left over.
         </p>
-        <p className="mb-3 text-sm opacity-70">
+        <p className="mt-1 text-sm">
           {leftoverCount > 0 || assignments.length > 0
             ? `A draw has already been run — re-running will replace everyone's teams.`
             : 'No draw has been run yet.'}
         </p>
-        <form action={doDraw} className="flex flex-wrap items-center gap-2">
-          <input
-            className="brutal-input w-40"
-            name="seed"
-            placeholder="Optional seed (e.g. 42)"
-            inputMode="numeric"
-          />
-          <button className="brutal-btn-primary" type="submit">Run / re-run draw</button>
-        </form>
+
+        <div className="mt-4 border-[3px] border-current p-3">
+          <h3 className="text-sm font-bold uppercase">1. Sync Polymarket odds</h3>
+          <p className="text-xs mt-1">
+            Pulls current "yes" prices from Polymarket and stores them on each team. The preference draw uses these for the
+            top-seed tiering + odds balancing.
+          </p>
+          <form action={doPolymarketSync} className="mt-2">
+            <button className="brutal-btn-ghost text-xs" type="submit">Sync Polymarket odds</button>
+          </form>
+        </div>
+
+        <div className="mt-3 border-[3px] border-current p-3">
+          <h3 className="text-sm font-bold uppercase">2. Run draw</h3>
+          <form action={doDraw} className="mt-2 flex flex-wrap items-center gap-2">
+            <select className="brutal-input w-auto" name="mode" defaultValue="preference">
+              <option value="preference">Preference-aware (top seed + balanced odds)</option>
+              <option value="random">Pure random (legacy)</option>
+            </select>
+            <input
+              className="brutal-input w-40"
+              name="seed"
+              placeholder="Optional seed (e.g. 42)"
+              inputMode="numeric"
+            />
+            <button className="brutal-btn-primary" type="submit">Run / re-run draw</button>
+          </form>
+        </div>
       </section>
 
       {/* Results ---------------------------------------------------------- */}
       <section id="results" className="brutal-card">
         <h2 className="mb-3 text-lg font-semibold">Results</h2>
-        <p className="mb-3 text-sm opacity-70">Enter scores as matches finish. For KO ties, fill in penalty scores too.</p>
+        <p className="mb-3 text-sm opacity-100">Enter scores as matches finish. For KO ties, fill in penalty scores too.</p>
         <div className="max-h-[60vh] overflow-y-auto pr-1">
           <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase opacity-60">
+            <thead className="text-xs uppercase opacity-100">
               <tr>
                 <th className="py-2">When</th>
                 <th>Match</th>
@@ -254,11 +292,11 @@ export default async function AdminPage() {
                 const needsTeamPick = !home || !away;
                 return (
                   <tr key={f.id} className="border-t border-black/5 align-top">
-                    <td className="py-2 text-xs whitespace-nowrap opacity-70">
-                      {new Date(f.kickoff).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    <td className="py-2 text-xs whitespace-nowrap opacity-100">
+                      {fmtNzDateTime(f.kickoff)} {nzZoneAbbr(f.kickoff)}
                     </td>
                     <td className="text-xs">
-                      <div className="opacity-60">{f.stage}{f.groupName ? ` ${f.groupName}` : ''}</div>
+                      <div className="opacity-100">{f.stage}{f.groupName ? ` ${f.groupName}` : ''}</div>
                       <div>
                         {home ? `${home.flag} ${home.name}` : (f.homeLabel ?? 'TBD')}
                         <span className="px-1 opacity-50">vs</span>
@@ -291,7 +329,7 @@ export default async function AdminPage() {
                         <span className="opacity-50">–</span>
                         <input className="brutal-input w-14 text-center" name="away" defaultValue={f.awayScore ?? ''} placeholder="-" inputMode="numeric" />
                         {knockout && (
-                          <span className="ml-2 inline-flex items-center gap-1 text-xs opacity-70">
+                          <span className="ml-2 inline-flex items-center gap-1 text-xs opacity-100">
                             pens
                             <input className="brutal-input w-10 text-center" name="home_pens" defaultValue={f.homePens ?? ''} placeholder="-" inputMode="numeric" />
                             <span className="opacity-50">–</span>
@@ -326,7 +364,7 @@ export default async function AdminPage() {
               <div className="flex flex-wrap items-center gap-2">
                 <span className="brutal-pill text-xs tabular-nums">{Number(p.pctOfPot).toFixed(0)}%</span>
                 <strong>{p.name}</strong>
-                <span className="text-xs opacity-60">{p.description}</span>
+                <span className="text-xs opacity-100">{p.description}</span>
               </div>
               <form action={awardPrize} className="mt-2 flex flex-wrap items-center gap-2">
                 <input type="hidden" name="prize_id" value={p.id} />

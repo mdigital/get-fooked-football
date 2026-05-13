@@ -46,7 +46,7 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
     <>
       <div className="brutal-card">
         <h1 className="brutal-h1">Leaderboards</h1>
-        <p className="text-sm opacity-70 mt-2">Same points, different lenses. Pick a board.</p>
+        <p className="text-sm opacity-100 mt-2">Same points, different lenses. Pick a board.</p>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <label className="text-sm font-bold uppercase tracking-wide">Board</label>
           <select
@@ -60,16 +60,16 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
               </option>
             ))}
           </select>
-          {isPending && <span className="text-xs opacity-70">loading…</span>}
+          {isPending && <span className="text-xs opacity-100">loading…</span>}
           {error && <span className="brutal-error text-xs">{error}</span>}
         </div>
       </div>
 
-      <div className={`brutal-card transition-opacity ${isPending ? 'opacity-60' : 'opacity-100'}`}>
+      <div className={`brutal-card transition-opacity ${isPending ? 'opacity-100' : 'opacity-100'}`}>
         <h2 className="brutal-h2">{meta.label}</h2>
-        <p className="text-sm opacity-70">{meta.tagline}</p>
+        <p className="text-sm opacity-100">{meta.tagline}</p>
         <table className="mt-4 w-full text-left text-sm table-row-hover">
-          <thead className="text-xs uppercase opacity-60">
+          <thead className="text-xs uppercase opacity-100">
             <tr>
               <th className="py-2">#</th>
               <th>Player</th>
@@ -81,7 +81,7 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
           <tbody>
             {rows.length === 0 && (
               <tr>
-                <td colSpan={5} className="py-4 text-center opacity-60">
+                <td colSpan={5} className="py-4 text-center opacity-100">
                   No players yet — admin needs to invite people and run the draw.
                 </td>
               </tr>
