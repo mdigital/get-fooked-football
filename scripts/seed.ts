@@ -7,7 +7,6 @@
  *
  * Idempotent: re-running won't duplicate rows.
  */
-import 'dotenv/config';
 import { db, schema } from '../src/db/client';
 import { eq, sql } from 'drizzle-orm';
 
