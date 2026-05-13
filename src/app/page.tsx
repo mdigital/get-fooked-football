@@ -4,15 +4,17 @@ import { sql } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { buildLeaderboard } from '@/lib/leaderboards';
 import PolymarketWidget from './_polymarket-widget';
+import LeaderboardWidget from './_leaderboard-widget';
 
 export const dynamic = 'force-dynamic';
 
+const FIXTURE_LIMIT = 10;
+
 export default async function HomePage() {
   const session = await getSession();
-  const [fixtureCount, teamCount, userCount] = await Promise.all([
+  const [fixtureCount, teamCount] = await Promise.all([
     db.execute(sql`select count(*)::int as c from ${schema.fixtures}`),
     db.execute(sql`select count(*)::int as c from ${schema.teams}`),
-    db.execute(sql`select count(*)::int as c from ${schema.users}`),
   ]);
 
   const upcoming = await db.execute(sql`
@@ -25,7 +27,7 @@ export default async function HomePage() {
     left join teams at on at.id = f.away_team_id
     where f.status <> 'FINISHED'
     order by f.kickoff asc
-    limit 5
+    limit ${FIXTURE_LIMIT}
   `);
 
   const top = await buildLeaderboard('overall');
@@ -50,49 +52,53 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <div className="brutal-card">
-          <h2 className="mb-3 text-lg font-semibold">Next fixtures</h2>
-          <ul className="space-y-2">
-            {upcoming.rows.length === 0 && <li className="opacity-60">No fixtures yet — run the seed script.</li>}
-            {upcoming.rows.map((row, i) => {
-              const r = row as Record<string, unknown>;
-              const date = new Date(r.kickoff as string);
-              const home = (r.home_flag ? `${r.home_flag} ${r.home_name}` : r.home_label) as string;
-              const away = (r.away_flag ? `${r.away_flag} ${r.away_name}` : r.away_label) as string;
-              return (
-                <Link key={i} href={`/match/${r.id}`} className="flex items-center justify-between gap-3 rounded-lg border border-black/5 px-3 py-2 hover:border-current">
-                  <span className="text-xs uppercase opacity-60">
-                    {r.stage as string}
-                    {r.group_name ? ` · ${r.group_name}` : ''}
-                  </span>
-                  <span className="flex-1 truncate font-medium">{home} <span className="opacity-60">vs</span> {away}</span>
-                  <span className="text-xs tabular-nums opacity-70">{date.toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-                </Link>
-              );
-            })}
-          </ul>
-          <Link href="/fixtures" className="mt-3 inline-block text-sm brutal-link hover:underline">All fixtures →</Link>
+      {/* Next fixtures — full width. Two columns on wider screens so the list
+          doesn't span a kilometre across the card. */}
+      <section className="brutal-card">
+        <div className="flex items-center justify-between">
+          <h2 className="brutal-h2">Next fixtures</h2>
+          <Link href="/fixtures" className="text-sm brutal-link">All fixtures →</Link>
         </div>
-
-        <div className="brutal-card">
-          <h2 className="mb-3 text-lg font-semibold">Leaderboard — Overall</h2>
-          {top.length === 0 ? (
-            <p className="opacity-60">Once the draw is done and matches start, scores show up here.</p>
-          ) : (
-            <ol className="space-y-2">
-              {top.slice(0, 5).map((row, i) => (
-                <li key={row.userId} className="flex items-center justify-between rounded-lg border border-black/5 px-3 py-2">
-                  <span className="font-semibold tabular-nums">{i + 1}.</span>
-                  <span className="flex-1 px-2">{row.name}</span>
-                  <span className="tabular-nums">{row.points} pts</span>
-                </li>
-              ))}
-            </ol>
+        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+          {upcoming.rows.length === 0 && (
+            <li className="opacity-60">No fixtures yet — run the seed script.</li>
           )}
-          <Link href="/leaderboards" className="mt-3 inline-block text-sm brutal-link hover:underline">All boards →</Link>
-        </div>
+          {upcoming.rows.map((row, i) => {
+            const r = row as Record<string, unknown>;
+            const date = new Date(r.kickoff as string);
+            const home = (r.home_flag ? `${r.home_flag} ${r.home_name}` : r.home_label) as string;
+            const away = (r.away_flag ? `${r.away_flag} ${r.away_name}` : r.away_label) as string;
+            return (
+              <Link
+                key={i}
+                href={`/match/${r.id}`}
+                className="flex items-center justify-between gap-3 border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
+              >
+                <span className="text-xs font-bold uppercase opacity-70 w-14 truncate">
+                  {r.stage as string}
+                  {r.group_name ? ` ${r.group_name}` : ''}
+                </span>
+                <span className="flex-1 truncate font-bold">
+                  {home} <span className="opacity-60">vs</span> {away}
+                </span>
+                <span className="text-xs tabular-nums opacity-70 whitespace-nowrap">
+                  {date.toLocaleString(undefined, {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </Link>
+            );
+          })}
+        </ul>
+      </section>
 
+      {/* Leaderboard + Polymarket — 50/50 below. */}
+      <section className="grid gap-4 md:grid-cols-2">
+        <LeaderboardWidget initialBoard="overall" initialRows={top} />
         <PolymarketWidget />
       </section>
     </div>
