@@ -324,7 +324,7 @@ export default async function AdminPage() {
           {prizes.map((p) => (
             <li key={p.id} className="rounded-lg border border-black/5 p-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-lg bg-neon-lime px-2 py-0.5 text-xs font-semibold text-white tabular-nums">${p.amountNzd}</span>
+                <span className="brutal-pill text-xs tabular-nums">{Number(p.pctOfPot).toFixed(0)}%</span>
                 <strong>{p.name}</strong>
                 <span className="text-xs opacity-60">{p.description}</span>
               </div>

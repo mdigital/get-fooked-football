@@ -10,3 +10,5 @@ public/uploads/*
 !public/uploads/.gitkeep
 drizzle/meta/
 tsconfig.tsbuildinfo
+.claude/
+drizzle/0000_*.sql

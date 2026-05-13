@@ -222,24 +222,33 @@ async function ensureKnockoutFixtures() {
 }
 
 async function ensurePrizes() {
-  const existing = await db.select({ id: schema.prizes.id }).from(schema.prizes);
-  if (existing.length > 0) {
-    console.log(`Prizes already present (${existing.length}). Skipping.`);
+  const existing = await db.select({ id: schema.prizes.id, pct: schema.prizes.pctOfPot, awarded: schema.prizes.awardedUserId }).from(schema.prizes);
+  // Re-seed if missing percentages (e.g. migrating from the old amountNzd schema) or empty.
+  const needsReset = existing.length === 0 || existing.some((p) => Number(p.pct) === 0);
+  if (!needsReset) {
+    console.log(`Prizes already present (${existing.length}) with percentages. Skipping.`);
     return;
   }
+  if (existing.some((p) => p.awarded != null)) {
+    console.log('Some prizes are already awarded — refusing to reset. Edit them manually.');
+    return;
+  }
+  await db.delete(schema.prizes);
+  // Percentages must sum to 100. Adjust here + re-run db:seed any time.
   await db.insert(schema.prizes).values([
-    { name: 'The Big One', description: 'Overall tipping champion. Winner of the main league.', amountNzd: 400, category: 'GRAND', boardKey: 'overall', sortOrder: 1 },
-    { name: 'The Wool Cup', description: 'Best score weighted by total sheep across your teams. Baa-rilliant.', amountNzd: 60, category: 'BOARD', boardKey: 'sheep', sortOrder: 2 },
-    { name: 'The People’s Trophy', description: 'Best score weighted by total population across your teams. Rooting for the masses.', amountNzd: 60, category: 'BOARD', boardKey: 'population', sortOrder: 3 },
-    { name: 'The Wooden Spoon', description: 'Lowest finisher in the main league. Comes with bragging rights and a literal wooden spoon.', amountNzd: 20, category: 'SPECIAL', sortOrder: 90 },
-    { name: 'Best Group Stage', description: 'Most points earned during the group stage only.', amountNzd: 40, category: 'SPECIAL', sortOrder: 4 },
-    { name: 'Best Knockout Stage', description: 'Most points earned from the Round of 32 onwards.', amountNzd: 40, category: 'SPECIAL', sortOrder: 5 },
-    { name: 'Tournament Top Scorer Owner', description: 'Whoever owns the team containing the Golden Boot winner.', amountNzd: 30, category: 'SPECIAL', sortOrder: 6 },
-    { name: 'Cinderella Cup', description: 'Owner of the lowest-ranked team that progresses furthest.', amountNzd: 30, category: 'SPECIAL', sortOrder: 7 },
-    { name: 'The Bin Fire', description: 'Owner of the team with the biggest goal difference deficit in the group stage.', amountNzd: 15, category: 'SPECIAL', sortOrder: 8 },
-    { name: 'The InSwap League', description: 'Winner of the photo competition, decided by thumbs up votes and hot-or-not tiebreaker.', amountNzd: 50, category: 'INSWAP', sortOrder: 50 },
+    { name: 'The Big One',                 description: 'Overall tipping champion. Winner of the main league.',                                pctOfPot: '50.00', category: 'GRAND',   boardKey: 'overall',       sortOrder: 1 },
+    { name: 'Best Group Stage',            description: 'Most points earned during the group stage only.',                                     pctOfPot: '8.00',  category: 'SPECIAL',                            sortOrder: 4 },
+    { name: 'Best Knockout Stage',         description: 'Most points earned from the Round of 32 onwards.',                                    pctOfPot: '8.00',  category: 'SPECIAL',                            sortOrder: 5 },
+    { name: 'The Wool Cup',                description: 'Best score weighted by total sheep across your teams.',                               pctOfPot: '6.00',  category: 'BOARD',   boardKey: 'sheep',         sortOrder: 2 },
+    { name: 'The People’s Trophy',    description: 'Best score weighted by total population across your teams.',                          pctOfPot: '6.00',  category: 'BOARD',   boardKey: 'population',    sortOrder: 3 },
+    { name: 'The InSwap League',           description: 'Winner of the photo competition. Thumbs up + hot-or-not tiebreaker.',                 pctOfPot: '6.00',  category: 'INSWAP',                             sortOrder: 50 },
+    { name: 'Tournament Top Scorer Owner', description: 'Whoever owns the team containing the Golden Boot winner.',                            pctOfPot: '4.00',  category: 'SPECIAL',                            sortOrder: 6 },
+    { name: 'Cinderella Cup',              description: 'Owner of the lowest-ranked team that progresses furthest.',                           pctOfPot: '4.00',  category: 'SPECIAL',                            sortOrder: 7 },
+    { name: 'The Bin Fire',                description: 'Owner of the team with the biggest goal difference deficit in the group stage.',      pctOfPot: '3.00',  category: 'SPECIAL',                            sortOrder: 8 },
+    { name: 'The Wooden Spoon',            description: 'Lowest finisher in the main league. Bragging rights and a literal wooden spoon.',     pctOfPot: '3.00',  category: 'SPECIAL',                            sortOrder: 90 },
+    { name: 'Underdog Cup',                description: 'Best score weighted by your teams’ average FIFA rank — worse draw, bigger boost.', pctOfPot: '2.00', category: 'BOARD',  boardKey: 'fifa_underdog', sortOrder: 9 },
   ]);
-  console.log('Inserted starter prize list.');
+  console.log('Inserted prize list (percentages sum to 100).');
 }
 
 async function main() {

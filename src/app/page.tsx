@@ -3,6 +3,7 @@ import { db, schema } from '@/db/client';
 import { sql } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { buildLeaderboard } from '@/lib/leaderboards';
+import PolymarketWidget from './_polymarket-widget';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,9 +36,8 @@ export default async function HomePage() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="brutal-h1">Get Fooked ⚽</h1>
-            <p className="opacity-70 mt-2">
-              2026 World Cup tipping for the crew. {(userCount.rows[0] as { c: number }).c} player
-              {(userCount.rows[0] as { c: number }).c === 1 ? '' : 's'} in · {(fixtureCount.rows[0] as { c: number }).c} fixtures loaded ·{' '}
+            <p className="opacity-80 mt-2">
+              2026 World Cup tipping for cunts. {(fixtureCount.rows[0] as { c: number }).c} fixtures loaded.{' '}
               {(teamCount.rows[0] as { c: number }).c} teams to win.
             </p>
           </div>
@@ -50,7 +50,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <div className="brutal-card">
           <h2 className="mb-3 text-lg font-semibold">Next fixtures</h2>
           <ul className="space-y-2">
@@ -92,8 +92,9 @@ export default async function HomePage() {
           )}
           <Link href="/leaderboards" className="mt-3 inline-block text-sm brutal-link hover:underline">All boards →</Link>
         </div>
-      </section>
 
+        <PolymarketWidget />
+      </section>
     </div>
   );
 }

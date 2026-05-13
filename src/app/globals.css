@@ -1,118 +1,212 @@
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/liberation-mono@5.0.18/400.css');
+@import url('https://cdn.jsdelivr.net/npm/@fontsource/liberation-mono@5.0.18/700.css');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* CGA palette 1 (high intensity): black, white, cyan, magenta */
 :root {
-  --paper: #f5f3ec;
-  --ink: #0a0a0a;
-  --neon-lime: #c6ff3a;
-  --neon-cyan: #3affff;
-  --neon-pink: #ff3da3;
-  --neon-yellow: #ffd23f;
+  --bg: #ffffff;
+  --fg: #000000;
+  --accent-1: #55ffff;
+  --accent-2: #ff55ff;
+  --muted: #aaaaaa;
+  --border: #000000;
   color-scheme: light;
+}
+
+.dark {
+  --bg: #000000;
+  --fg: #ffffff;
+  --accent-1: #55ffff;
+  --accent-2: #ff55ff;
+  --muted: #aaaaaa;
+  --border: #ffffff;
+  color-scheme: dark;
 }
 
 html,
 body {
-  background: var(--paper);
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--fg);
   min-height: 100%;
-  font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
+  font-family: 'Liberation Mono', 'DejaVu Sans Mono', 'Menlo', ui-monospace, monospace;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+  -webkit-text-size-adjust: 100%;
 }
 
-/* The page is striped with a faint pitch pattern in the background — totally optional. */
-body {
-  background-image:
-    radial-gradient(circle at 15% 10%, rgba(198, 255, 58, 0.18), transparent 35%),
-    radial-gradient(circle at 85% 80%, rgba(58, 255, 255, 0.15), transparent 40%);
+/* Subtle scanline backdrop, optional flavour. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(0, 0, 0, 0.025) 3px
+  );
+}
+
+.dark body::before {
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 2px,
+    rgba(255, 255, 255, 0.04) 3px
+  );
+}
+
+main,
+header,
+footer {
+  position: relative;
+  z-index: 1;
 }
 
 /* ------------------------------------------------------------------
-   Neobrutalist base components — chunky borders, hard shadows, bold type.
-   Designed to be composed via Tailwind's @apply.
+   Component layer — ANSI / CGA terminal aesthetic.
+   Sharp corners, thick borders, hard shadows, reverse-video buttons.
+   Same `brutal-*` class names so the rest of the app picks them up
+   without changes.
 ------------------------------------------------------------------- */
 @layer components {
   .brutal-card {
-    @apply rounded-none border-[3px] border-black bg-paper p-5 shadow-brutal;
+    @apply border-[3px] border-cga-black bg-white p-5 shadow-cga rounded-none;
+  }
+  .dark .brutal-card {
+    @apply border-cga-white bg-cga-black text-cga-white shadow-cga-inverse;
   }
   .brutal-card-inner {
-    @apply rounded-none border-[3px] border-black bg-white/70 p-4 shadow-brutal-sm;
+    @apply border-[3px] border-current p-4 rounded-none;
   }
 
   .brutal-h1 {
-    @apply text-3xl md:text-4xl font-black uppercase leading-none tracking-tight;
+    @apply text-2xl md:text-3xl font-bold uppercase tracking-tight leading-none;
   }
   .brutal-h2 {
-    @apply text-xl font-black uppercase leading-none tracking-tight;
+    @apply text-lg font-bold uppercase tracking-tight leading-none;
   }
 
   .brutal-input {
-    @apply block w-full rounded-none border-[3px] border-black bg-white px-3 py-2 font-mono shadow-brutal-sm outline-none focus:translate-x-[1px] focus:translate-y-[1px] focus:shadow-none;
+    @apply block w-full border-[3px] border-current bg-transparent px-3 py-2 outline-none focus:bg-cga-cyan focus:text-cga-black rounded-none;
+  }
+  select.brutal-input {
+    appearance: none;
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: calc(100% - 16px) 12px, calc(100% - 10px) 12px;
+    background-size: 6px 6px;
+    background-repeat: no-repeat;
+    padding-right: 32px;
   }
 
+  /* Reverse-video buttons: ink on paper by default, paper on ink on hover. */
   .brutal-btn {
-    @apply inline-flex select-none items-center justify-center rounded-none border-[3px] border-black px-4 py-2 font-bold uppercase tracking-wide shadow-brutal-sm transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50;
+    @apply inline-flex select-none items-center justify-center border-[3px] border-current px-4 py-2 font-bold uppercase tracking-wide shadow-cga rounded-none transition-transform active:translate-x-[2px] active:translate-y-[2px] active:shadow-none disabled:opacity-50;
   }
   .brutal-btn-primary {
-    @apply brutal-btn bg-neon-lime text-black hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-brutal;
+    @apply brutal-btn bg-cga-black text-cga-white hover:bg-cga-cyan hover:text-cga-black;
+  }
+  .dark .brutal-btn-primary {
+    @apply bg-cga-white text-cga-black hover:bg-cga-cyan;
   }
   .brutal-btn-pink {
-    @apply brutal-btn bg-neon-pink text-black;
+    @apply brutal-btn bg-cga-magenta text-cga-black hover:bg-cga-black hover:text-cga-magenta;
   }
   .brutal-btn-cyan {
-    @apply brutal-btn bg-neon-cyan text-black;
+    @apply brutal-btn bg-cga-cyan text-cga-black hover:bg-cga-black hover:text-cga-cyan;
   }
   .brutal-btn-ghost {
-    @apply brutal-btn bg-white;
+    @apply brutal-btn bg-transparent hover:bg-cga-cyan hover:text-cga-black;
   }
   .brutal-btn-yes {
-    @apply brutal-btn bg-neon-lime px-3 py-1 text-xs;
+    @apply brutal-btn bg-cga-cyan text-cga-black px-3 py-1 text-xs;
   }
   .brutal-btn-no {
-    @apply brutal-btn bg-neon-pink px-3 py-1 text-xs;
+    @apply brutal-btn bg-cga-magenta text-cga-black px-3 py-1 text-xs;
   }
 
   .brutal-pill {
-    @apply inline-flex items-center rounded-full border-[2px] border-black bg-white px-2 py-0.5 font-bold uppercase;
+    @apply inline-flex items-center border-[2px] border-current px-2 py-0.5 font-bold uppercase rounded-none;
   }
+
   .brutal-error {
-    @apply rounded-none border-[3px] border-black bg-neon-pink p-2 font-bold text-black shadow-brutal-sm;
+    @apply border-[3px] border-current bg-cga-magenta px-3 py-2 font-bold text-cga-black rounded-none;
   }
 
   .brutal-link {
-    @apply font-bold underline decoration-[3px] underline-offset-4 hover:text-neon-pink;
+    color: var(--accent-2);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 3px;
+  }
+  .brutal-link:hover {
+    color: var(--accent-1);
+    background: var(--fg);
+    text-decoration: none;
+  }
+  .dark .brutal-link:hover {
+    color: var(--accent-1);
+    background: var(--fg);
+    color: var(--bg);
   }
 
   .brutal-emoji-btn {
-    @apply h-10 w-10 select-none rounded-none border-[2px] border-black bg-white text-xl shadow-brutal-sm transition-transform hover:-translate-y-[1px] hover:bg-neon-yellow active:translate-x-[1px] active:translate-y-[1px] active:shadow-none;
+    @apply h-10 w-10 select-none border-[2px] border-current text-xl shadow-cga rounded-none transition-transform hover:-translate-y-[1px] hover:bg-cga-cyan hover:text-cga-black active:translate-x-[1px] active:translate-y-[1px] active:shadow-none;
   }
 
   .brutal-canvas {
-    @apply rounded-none border-[3px] border-black bg-white;
+    @apply border-[3px] border-current bg-cga-white rounded-none;
     background-image:
-      linear-gradient(rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0, 0, 0, 0.05) 1px, transparent 1px);
+      linear-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.08) 1px, transparent 1px);
     background-size: 24px 24px;
+  }
+  .dark .brutal-canvas {
+    background-color: #000;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   }
 
   .brutal-chart {
-    @apply rounded-none border-[3px] border-black bg-white;
+    @apply border-[3px] border-current bg-transparent rounded-none;
   }
 
   .table-row-hover tr:hover td {
-    background: rgba(0, 0, 0, 0.04);
+    background: var(--accent-1);
+    color: var(--fg);
+  }
+  .dark .table-row-hover tr:hover td {
+    color: var(--bg);
   }
 }
 
-/* Dark canvas for the polymarket page when used inside a dark wrapper. */
-.dark-section {
-  background: #0a0a0a;
-  color: #f5f3ec;
+/* Headings render with ANSI-ish brackets where appropriate. */
+.brutal-h1::before,
+.brutal-h2::before {
+  content: '';
 }
-.dark-section .brutal-card {
-  background: #0a0a0a;
-  border-color: #f5f3ec;
-  color: #f5f3ec;
-  box-shadow: 6px 6px 0 0 #c6ff3a;
+
+/* Selection in CGA accent colours. */
+::selection {
+  background: var(--accent-1);
+  color: var(--fg);
+}
+.dark ::selection {
+  background: var(--accent-1);
+  color: #000;
+}
+
+/* Inputs and buttons need explicit currentColor for the reverse-video pattern. */
+input,
+select,
+button,
+textarea {
+  font-family: inherit;
 }

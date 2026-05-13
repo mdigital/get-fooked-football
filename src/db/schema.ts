@@ -1,4 +1,4 @@
-import { pgTable, serial, text, integer, boolean, timestamp, uniqueIndex, index, primaryKey, varchar, jsonb } from 'drizzle-orm/pg-core';
+import { pgTable, serial, text, integer, boolean, timestamp, uniqueIndex, index, primaryKey, varchar, jsonb, numeric } from 'drizzle-orm/pg-core';
 
 export const users = pgTable(
   'users',
@@ -91,7 +91,9 @@ export const prizes = pgTable('prizes', {
   id: serial('id').primaryKey(),
   name: text('name').notNull(),
   description: text('description').notNull(),
-  amountNzd: integer('amount_nzd').notNull().default(0),
+  // Share of the total pot (0..100). Actual NZD amount is computed at display
+  // time from playerCount × buyIn × pctOfPot.
+  pctOfPot: numeric('pct_of_pot', { precision: 5, scale: 2 }).notNull().default('0'),
   // 'GRAND' | 'BOARD' | 'SPECIAL' | 'INSWAP'
   category: text('category').notNull().default('SPECIAL'),
   // links to a leaderboard kind (e.g. 'population', 'sheep', 'overall') if board-based
