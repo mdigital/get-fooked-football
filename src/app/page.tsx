@@ -69,22 +69,25 @@ export default async function HomePage() {
             const date = new Date(r.kickoff as string);
             const home = (r.home_flag ? `${r.home_flag} ${r.home_name}` : r.home_label) as string;
             const away = (r.away_flag ? `${r.away_flag} ${r.away_name}` : r.away_label) as string;
+            const stage = r.stage as string;
+            const group = r.group_name as string | null;
             return (
               <Link
                 key={i}
                 href={`/match/${r.id}`}
-                className="flex items-center justify-between gap-3 border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
+                className="block border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
               >
-                <span className="text-xs font-bold uppercase w-14 truncate">
-                  {r.stage as string}
-                  {r.group_name ? ` ${r.group_name}` : ''}
-                </span>
-                <span className="flex-1 truncate font-bold">
+                <div className="truncate text-base font-bold">
                   {home} <span>vs</span> {away}
-                </span>
-                <span className="text-xs tabular-nums whitespace-nowrap">
-                  {fmtNzDateTime(date)} {nzZoneAbbr(date)}
-                </span>
+                </div>
+                <div className="mt-1 flex items-center gap-2 text-xs">
+                  <span className="tabular-nums font-bold">
+                    {fmtNzDateTime(date)} {nzZoneAbbr(date)}
+                  </span>
+                  <span className="hidden sm:inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
+                    {stage}{group ? ` ${group}` : ''}
+                  </span>
+                </div>
               </Link>
             );
           })}

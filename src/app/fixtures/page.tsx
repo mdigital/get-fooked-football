@@ -44,33 +44,38 @@ export default async function FixturesPage() {
               const away = f.awayTeamId ? teamById.get(f.awayTeamId) : undefined;
               const time = fmtNzTime(f.kickoff);
               const zone = nzZoneAbbr(f.kickoff);
+              const stageLabel = STAGE_LABEL[f.stage] ?? f.stage;
+              const stageSuffix = f.groupName ? ` ${f.groupName}` : '';
               return (
                 <Link
                   key={f.id}
                   href={`/match/${f.id}`}
-                  className="grid grid-cols-[6rem_minmax(0,1fr)_auto] items-center gap-3 border-[2px] border-current px-2 py-1.5 hover:bg-cga-cyan hover:text-cga-black"
+                  className="block border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
                 >
-                  <span className="text-xs tabular-nums font-bold whitespace-nowrap">
-                    {time} {zone}
-                  </span>
-                  <span className="truncate">
-                    <span className="mr-2 inline-block min-w-[6rem] border-[2px] border-current px-2 py-0.5 text-xs uppercase font-bold">
-                      {STAGE_LABEL[f.stage] ?? f.stage}
-                      {f.groupName ? ` ${f.groupName}` : ''}
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="min-w-0 flex-1 truncate text-base font-bold">
+                      {home ? `${home.flag} ${home.name}` : (f.homeLabel ?? 'TBD')}
+                      <span className="px-2">vs</span>
+                      {away ? `${away.flag} ${away.name}` : (f.awayLabel ?? 'TBD')}
                     </span>
-                    {home ? `${home.flag} ${home.name}` : (f.homeLabel ?? 'TBD')}
-                    <span className="px-2">vs</span>
-                    {away ? `${away.flag} ${away.name}` : (f.awayLabel ?? 'TBD')}
-                  </span>
-                  <span className="text-sm tabular-nums">
-                    {f.status === 'FINISHED' ? (
-                      <strong>
-                        {f.homeScore} – {f.awayScore}
-                      </strong>
-                    ) : (
-                      <span>—</span>
-                    )}
-                  </span>
+                    <span className="whitespace-nowrap text-sm tabular-nums">
+                      {f.status === 'FINISHED' ? (
+                        <strong>
+                          {f.homeScore} – {f.awayScore}
+                        </strong>
+                      ) : (
+                        <span>—</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs">
+                    <span className="tabular-nums font-bold">
+                      {time} {zone}
+                    </span>
+                    <span className="hidden sm:inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
+                      {stageLabel}{stageSuffix}
+                    </span>
+                  </div>
                 </Link>
               );
             })}
