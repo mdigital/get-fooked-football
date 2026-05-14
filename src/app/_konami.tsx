@@ -23,6 +23,39 @@ const SEQUENCE = [
 export const KONAMI_OPEN_EVENT = 'konami:open';
 
 /**
+ * Prints a cryptic, CGA-styled invitation in the devtools console. Anyone
+ * who opens the inspector should be able to figure out there's a hidden
+ * game, without us spelling it out.
+ *
+ * Only fires once per page load via the `hintPrinted` guard so HMR /
+ * StrictMode double-effects don't spam it.
+ */
+let hintPrinted = false;
+function printHint() {
+  if (typeof window === 'undefined' || hintPrinted) return;
+  hintPrinted = true;
+  const banner =
+    'background:#ff55ff;color:#000;font-weight:bold;padding:6px 12px;' +
+    'font-family:ui-monospace,"IBM Plex Mono",monospace;font-size:14px;letter-spacing:0.05em';
+  const cyan = 'color:#55ffff;font-family:ui-monospace,monospace';
+  const magenta = 'color:#ff55ff;font-family:ui-monospace,monospace;font-weight:bold';
+  const dim = 'color:#888;font-family:ui-monospace,monospace';
+  const fg = 'color:#fff;font-family:ui-monospace,monospace';
+  /* eslint-disable no-console */
+  console.log('%c▓▒░ GET FOOKED ░▒▓', banner);
+  console.log(
+    '%c       __\n%c      (o_o)>—\n%c       --',
+    magenta,
+    magenta,
+    magenta,
+  );
+  console.log('%cthere is a bird. it remembers 1986.', cyan);
+  console.log('%cten keystrokes. two letters at the end.', fg);
+  console.log('%c(or knock politely:) %cwindow.__openFlappy()', dim, magenta);
+  /* eslint-enable no-console */
+}
+
+/**
  * Global keydown listener for the Konami code. When the sequence matches,
  * opens a portaled fullscreen modal with the Flappy Bird easter egg.
  *
@@ -42,30 +75,15 @@ export function Konami() {
   const close = useCallback(() => setOpen(false), []);
 
   useEffect(() => {
-    // eslint-disable-next-line no-console
-    console.log('[konami] listener attached. press ↑↑↓↓←→←→BA, or window.__openFlappy()');
+    printHint();
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
-      const inField =
-        !!t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
-      if (inField) {
-        // eslint-disable-next-line no-console
-        console.log('[konami] key skipped — focus is in', t!.tagName, e.key);
-        return;
-      }
-      const raw = e.key;
-      const key = raw.length === 1 ? raw.toLowerCase() : raw;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
       buffer.current.push(key);
       if (buffer.current.length > SEQUENCE.length) {
         buffer.current = buffer.current.slice(-SEQUENCE.length);
       }
-      const expectedNext = SEQUENCE[Math.min(buffer.current.length - 1, SEQUENCE.length - 1)];
-      // eslint-disable-next-line no-console
-      console.log(
-        `[konami] key=${JSON.stringify(raw)} -> ${JSON.stringify(key)} | buffer=[${buffer.current
-          .map((k) => JSON.stringify(k))
-          .join(', ')}] | expected next=${JSON.stringify(expectedNext)}`,
-      );
       if (buffer.current.length === SEQUENCE.length) {
         let match = true;
         for (let i = 0; i < SEQUENCE.length; i++) {
@@ -75,8 +93,6 @@ export function Konami() {
           }
         }
         if (match) {
-          // eslint-disable-next-line no-console
-          console.log('[konami] sequence matched — opening flappy');
           buffer.current = [];
           setOpen(true);
         }
