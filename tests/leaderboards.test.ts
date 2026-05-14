@@ -92,4 +92,33 @@ describe('computeLeaderboard', () => {
     expect(board.every((r) => r.points === 0)).toBe(true);
     expect(board).toHaveLength(users.length);
   });
+
+  it('flappy: orders by best survival per user, formats as seconds', () => {
+    const u = (id: number, name: string) => ({
+      id,
+      name,
+      nickname: null,
+      email: `${name.toLowerCase()}@example.com`,
+      avatarUrl: null,
+    });
+    const flappyRows = [
+      // Robin posts 3.21s and 6.10s — best is 6.10s.
+      { userId: 1, survivedMs: 3210, pipesCleared: 2, createdAt: new Date('2026-06-01T10:00:00Z'), user: u(1, 'Robin') },
+      { userId: 1, survivedMs: 6100, pipesCleared: 6, createdAt: new Date('2026-06-02T10:00:00Z'), user: u(1, 'Robin') },
+      // Sam posts 4.40s.
+      { userId: 2, survivedMs: 4400, pipesCleared: 3, createdAt: new Date('2026-06-01T11:00:00Z'), user: u(2, 'Sam') },
+    ];
+    const board = computeLeaderboard('flappy', users, teams, assignments, fixtures, [], flappyRows);
+    expect(board[0].name).toBe('Robin');
+    expect(board[0].displayValue).toBe('6.10s');
+    expect(board[1].name).toBe('Sam');
+    expect(board[1].displayValue).toBe('4.40s');
+  });
+
+  it('flappy with no runs shows dash and zero points for every user', () => {
+    const board = computeLeaderboard('flappy', users, teams, assignments, fixtures, [], []);
+    expect(board).toHaveLength(users.length);
+    expect(board.every((r) => r.weightedPoints === 0)).toBe(true);
+    expect(board.every((r) => r.displayValue === '—')).toBe(true);
+  });
 });

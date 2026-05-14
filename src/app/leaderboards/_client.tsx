@@ -102,7 +102,7 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
                 </td>
                 <td className="text-right tabular-nums">{r.teamCount}</td>
                 <td className="text-right tabular-nums">{r.points}</td>
-                <td className="text-right font-semibold tabular-nums">{r.weightedPoints}</td>
+                <td className="text-right font-semibold tabular-nums">{r.displayValue ?? r.weightedPoints}</td>
               </tr>
             ))}
           </tbody>

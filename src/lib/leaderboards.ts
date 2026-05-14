@@ -1,8 +1,10 @@
 import { db, schema } from '@/db/client';
+import { desc, eq } from 'drizzle-orm';
 import { computeTeamScores } from './scoring';
 import { avatarFor } from './avatar';
 import { displayName } from './display-name';
 import { computeSchadenfreude, type CurseInput } from './schadenfreude';
+import { formatSurvivedMs, rankPersonalBests, type FlappyScoreRow } from './flappy';
 import type { Fixture, Team, User } from '@/db/schema';
 
 export { BOARD_META } from './leaderboards-types';
@@ -21,6 +23,7 @@ export function computeLeaderboard(
   assignments: AssignmentInput[],
   fixtures: Fixture[],
   curses: ReadonlyArray<CurseInput> = [],
+  flappyRows: ReadonlyArray<FlappyScoreRow> = [],
 ): BoardRow[] {
   // Schadenfreude is a parallel scoring path that doesn't share the
   // team-assignment + per-team-points pipeline. Handle it up front.
@@ -37,6 +40,33 @@ export function computeLeaderboard(
     }));
     rows.sort(
       (a, b) => b.weightedPoints - a.weightedPoints || a.name.localeCompare(b.name),
+    );
+    return rows;
+  }
+
+  // Flappy survives in its own table (flappy_scores) — personal-bests only.
+  if (kind === 'flappy') {
+    const best = rankPersonalBests([...flappyRows]);
+    const byUser = new Map(best.map((b) => [b.userId, b] as const));
+    const rows = users.map<BoardRow>((u) => {
+      const b = byUser.get(u.id);
+      const ms = b?.bestMs ?? 0;
+      return {
+        userId: u.id,
+        name: displayName({ name: u.name, nickname: u.nickname }),
+        avatarSrc: avatarFor({ email: u.email, avatarUrl: u.avatarUrl ?? null }, 48),
+        teamCount: 0,
+        points: ms,
+        weight: b?.pipesCleared ?? 0,
+        weightedPoints: ms,
+        displayValue: ms > 0 ? formatSurvivedMs(ms) : '—',
+      };
+    });
+    rows.sort(
+      (a, b) =>
+        b.weightedPoints - a.weightedPoints ||
+        b.weight - a.weight ||
+        a.name.localeCompare(b.name),
     );
     return rows;
   }
@@ -93,12 +123,56 @@ export function computeLeaderboard(
 }
 
 export async function buildLeaderboard(kind: BoardKey): Promise<BoardRow[]> {
-  const [users, teams, assignments, fixtures, curses] = await Promise.all([
+  const [users, teams, assignments, fixtures, curses, flappy] = await Promise.all([
     db.select().from(schema.users),
     db.select().from(schema.teams),
     db.select().from(schema.teamAssignments),
     db.select().from(schema.fixtures),
     db.select({ userId: schema.teamCurses.userId, teamId: schema.teamCurses.teamId }).from(schema.teamCurses),
+    // Only the flappy board needs these — skip the join cost otherwise.
+    kind === 'flappy'
+      ? db
+          .select({
+            userId: schema.flappyScores.userId,
+            survivedMs: schema.flappyScores.survivedMs,
+            pipesCleared: schema.flappyScores.pipesCleared,
+            createdAt: schema.flappyScores.createdAt,
+            uid: schema.users.id,
+            uname: schema.users.name,
+            unick: schema.users.nickname,
+            uemail: schema.users.email,
+            uavatar: schema.users.avatarUrl,
+          })
+          .from(schema.flappyScores)
+          .leftJoin(schema.users, eq(schema.users.id, schema.flappyScores.userId))
+          .orderBy(desc(schema.flappyScores.survivedMs))
+          .limit(500)
+      : Promise.resolve([] as Array<{
+          userId: number;
+          survivedMs: number;
+          pipesCleared: number;
+          createdAt: Date;
+          uid: number | null;
+          uname: string | null;
+          unick: string | null;
+          uemail: string | null;
+          uavatar: string | null;
+        }>),
   ]);
-  return computeLeaderboard(kind, users, teams, assignments, fixtures, curses);
+  const flappyRows: FlappyScoreRow[] = flappy
+    .filter((r) => r.uname != null)
+    .map((r) => ({
+      userId: r.userId,
+      survivedMs: r.survivedMs,
+      pipesCleared: r.pipesCleared,
+      createdAt: r.createdAt,
+      user: {
+        id: r.uid!,
+        name: r.uname!,
+        nickname: r.unick,
+        email: r.uemail,
+        avatarUrl: r.uavatar,
+      },
+    }));
+  return computeLeaderboard(kind, users, teams, assignments, fixtures, curses, flappyRows);
 }

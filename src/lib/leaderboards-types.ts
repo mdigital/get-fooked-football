@@ -9,7 +9,8 @@ export type BoardKey =
   | 'fifa_underdog'
   | 'group_only'
   | 'ko_only'
-  | 'schadenfreude';
+  | 'schadenfreude'
+  | 'flappy';
 
 export type BoardRow = {
   userId: number;
@@ -21,6 +22,10 @@ export type BoardRow = {
   points: number;
   weight: number;
   weightedPoints: number;
+  /** Pretty-printed value for the rightmost cell. When set, renderers prefer
+   *  this over `${weightedPoints} ${unit}` (used by the flappy board to show
+   *  "5.42s" instead of 5420). */
+  displayValue?: string;
 };
 
 export const BOARD_META: Record<BoardKey, { label: string; tagline: string; unit: string }> = {
@@ -46,5 +51,10 @@ export const BOARD_META: Record<BoardKey, { label: string; tagline: string; unit
     label: 'Schadenfreude',
     tagline: '+3 every time a team you cursed loses. Side-board only — does not affect the main league.',
     unit: 'sf',
+  },
+  flappy: {
+    label: 'Flappy',
+    tagline: 'Longest survival run, per player.',
+    unit: '',
   },
 };

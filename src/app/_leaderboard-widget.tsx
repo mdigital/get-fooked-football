@@ -78,7 +78,10 @@ export default function LeaderboardWidget({
                   {row.name}
                 </Link>
                 <span className="text-sm font-bold tabular-nums">
-                  {row.weightedPoints} <span className="text-xs opacity-100">{meta.unit}</span>
+                  {row.displayValue ?? row.weightedPoints}{' '}
+                  {!row.displayValue && meta.unit && (
+                    <span className="text-xs opacity-100">{meta.unit}</span>
+                  )}
                 </span>
               </li>
             ))}
