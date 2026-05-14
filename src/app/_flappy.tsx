@@ -1,0 +1,357 @@
+'use client';
+
+/* eslint-disable @next/next/no-img-element */
+import { useCallback, useEffect, useRef, useState } from 'react';
+
+const W = 360;
+const H = 540;
+const GROUND = 40;
+const GRAVITY = 1100; // px/s^2
+const FLAP_V = -360; // px/s
+const PIPE_SPEED = 130; // px/s
+const PIPE_GAP = 130;
+const PIPE_W = 50;
+const PIPE_INTERVAL_MS = 1400;
+
+const CGA_BG = '#000';
+const CGA_FG = '#fff';
+const CGA_CYAN = '#55ffff';
+const CGA_MAGENTA = '#ff55ff';
+
+type Pipe = { x: number; gapTop: number; cleared: boolean };
+
+type BoardRow = {
+  userId: number;
+  displayName: string;
+  avatarSrc: string;
+  bestMs: number;
+  pipesCleared: number;
+};
+type SaveResponse = {
+  saved: { survivedMs: number; pipesCleared: number };
+  myBestMs: number;
+  myRank: number | null;
+  board: BoardRow[];
+};
+
+/**
+ * Fullscreen-modal Flappy Bird clone in CGA colours. Mounted by <Konami/>
+ * once the cheat sequence is entered. Crash POSTs to /api/flappy and the
+ * game-over screen renders the returned top-10 board.
+ */
+export function FlappyGame({ onClose }: { onClose: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const stateRef = useRef<{
+    birdY: number;
+    birdV: number;
+    pipes: Pipe[];
+    lastTimeMs: number;
+    spawnTimerMs: number;
+    startedAt: number;
+    runtimeMs: number;
+    pipesCleared: number;
+    crashed: boolean;
+  }>({
+    birdY: H / 2,
+    birdV: 0,
+    pipes: [],
+    lastTimeMs: 0,
+    spawnTimerMs: 0,
+    startedAt: 0,
+    runtimeMs: 0,
+    pipesCleared: 0,
+    crashed: false,
+  });
+  const [crashed, setCrashed] = useState(false);
+  const [submitted, setSubmitted] = useState<SaveResponse | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  /** Reset to a fresh game. */
+  const reset = useCallback(() => {
+    stateRef.current = {
+      birdY: H / 2,
+      birdV: 0,
+      pipes: [],
+      lastTimeMs: 0,
+      spawnTimerMs: 0,
+      startedAt: 0,
+      runtimeMs: 0,
+      pipesCleared: 0,
+      crashed: false,
+    };
+    setCrashed(false);
+    setSubmitted(null);
+    setSubmitError(null);
+    setSubmitting(false);
+  }, []);
+
+  const flap = useCallback(() => {
+    const s = stateRef.current;
+    if (s.crashed) return;
+    if (s.startedAt === 0) s.startedAt = performance.now();
+    s.birdV = FLAP_V;
+  }, []);
+
+  /** Game loop, driven by requestAnimationFrame. */
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.imageSmoothingEnabled = false;
+
+    let raf = 0;
+    const onFrame = (now: number) => {
+      const s = stateRef.current;
+      if (s.lastTimeMs === 0) s.lastTimeMs = now;
+      const dt = Math.min(0.05, (now - s.lastTimeMs) / 1000);
+      s.lastTimeMs = now;
+
+      if (!s.crashed) {
+        if (s.startedAt > 0) {
+          s.runtimeMs = now - s.startedAt;
+          s.birdV += GRAVITY * dt;
+          s.birdY += s.birdV * dt;
+          s.spawnTimerMs += dt * 1000;
+          if (s.spawnTimerMs >= PIPE_INTERVAL_MS) {
+            s.spawnTimerMs = 0;
+            const gapTop = 40 + Math.random() * (H - GROUND - 40 - PIPE_GAP - 40);
+            s.pipes.push({ x: W + PIPE_W, gapTop, cleared: false });
+          }
+          for (const p of s.pipes) p.x -= PIPE_SPEED * dt;
+          s.pipes = s.pipes.filter((p) => p.x + PIPE_W > -10);
+
+          // Collision detection.
+          const bx1 = 70;
+          const bx2 = 70 + 24;
+          const by1 = s.birdY - 12;
+          const by2 = s.birdY + 12;
+          if (by2 >= H - GROUND || by1 <= 0) {
+            crash();
+          } else {
+            for (const p of s.pipes) {
+              if (p.x + PIPE_W < bx1) {
+                if (!p.cleared) {
+                  p.cleared = true;
+                  s.pipesCleared += 1;
+                }
+                continue;
+              }
+              if (p.x > bx2) continue;
+              if (by1 < p.gapTop || by2 > p.gapTop + PIPE_GAP) {
+                crash();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      draw(ctx, s);
+      raf = requestAnimationFrame(onFrame);
+    };
+
+    function crash() {
+      const s = stateRef.current;
+      if (s.crashed) return;
+      s.crashed = true;
+      setCrashed(true);
+      submitRun(s.runtimeMs, s.pipesCleared);
+    }
+
+    raf = requestAnimationFrame(onFrame);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const submitRun = useCallback(async (survivedMs: number, pipesCleared: number) => {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      const r = await fetch('/api/flappy', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ survivedMs: Math.round(survivedMs), pipesCleared }),
+        cache: 'no-store',
+      });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const data = (await r.json()) as SaveResponse;
+      setSubmitted(data);
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'failed');
+    } finally {
+      setSubmitting(false);
+    }
+  }, []);
+
+  // Input — flap on space / click / arrow up. Restart on space when crashed.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key === ' ' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        if (stateRef.current.crashed) reset();
+        else flap();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [flap, onClose, reset]);
+
+  return (
+    <div className="flex flex-col items-center gap-3 max-w-md mx-auto">
+      <canvas
+        ref={canvasRef}
+        width={W}
+        height={H}
+        className="border-[3px] border-cga-magenta shadow-cga max-w-full"
+        style={{ imageRendering: 'pixelated' }}
+        onPointerDown={() => {
+          if (stateRef.current.crashed) reset();
+          else flap();
+        }}
+      />
+      <div className="text-xs uppercase font-bold opacity-100 text-cga-white">
+        space / click / ↑ to flap · esc to close
+      </div>
+      {crashed && (
+        <GameOverPanel
+          survivedMs={stateRef.current.runtimeMs}
+          pipes={stateRef.current.pipesCleared}
+          submitting={submitting}
+          submitError={submitError}
+          submitted={submitted}
+          onRetry={reset}
+        />
+      )}
+    </div>
+  );
+}
+
+function GameOverPanel({
+  survivedMs,
+  pipes,
+  submitting,
+  submitError,
+  submitted,
+  onRetry,
+}: {
+  survivedMs: number;
+  pipes: number;
+  submitting: boolean;
+  submitError: string | null;
+  submitted: SaveResponse | null;
+  onRetry: () => void;
+}) {
+  return (
+    <div className="w-full border-[3px] border-cga-cyan p-3 text-cga-white">
+      <div className="text-lg font-bold uppercase">Game over</div>
+      <div className="mt-1 text-sm">
+        you lasted <strong>{formatMs(survivedMs)}</strong> · {pipes} pipe{pipes === 1 ? '' : 's'} cleared
+      </div>
+      {submitting && <div className="mt-2 text-xs opacity-100">saving…</div>}
+      {submitError && <div className="mt-2 text-xs text-cga-magenta">save failed: {submitError}</div>}
+      {submitted && (
+        <div className="mt-2 text-xs">
+          personal best <strong>{formatMs(submitted.myBestMs)}</strong>
+          {submitted.myRank ? <> · rank #{submitted.myRank}</> : null}
+        </div>
+      )}
+      {submitted && submitted.board.length > 0 && (
+        <ol className="mt-3 space-y-1 text-sm">
+          {submitted.board.map((row, i) => (
+            <li
+              key={row.userId}
+              className="flex items-center gap-2 border-[2px] border-cga-white/60 px-2 py-1"
+            >
+              <span className="w-5 text-right tabular-nums">{i + 1}.</span>
+              <img
+                src={row.avatarSrc}
+                alt={`${row.displayName}'s avatar`}
+                width={20}
+                height={20}
+                className="border-[2px] border-current"
+                style={{ width: 20, height: 20, objectFit: 'cover' }}
+              />
+              <span className="min-w-0 flex-1 truncate">{row.displayName}</span>
+              <span className="tabular-nums">{formatMs(row.bestMs)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      <div className="mt-3 flex gap-2">
+        <button type="button" onClick={onRetry} className="brutal-btn-primary text-xs">
+          Play again (space)
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function formatMs(ms: number): string {
+  const safe = Number.isFinite(ms) && ms >= 0 ? ms : 0;
+  return `${(safe / 1000).toFixed(2)}s`;
+}
+
+function draw(ctx: CanvasRenderingContext2D, s: {
+  birdY: number;
+  pipes: Pipe[];
+  startedAt: number;
+  runtimeMs: number;
+  pipesCleared: number;
+  crashed: boolean;
+}) {
+  // Sky
+  ctx.fillStyle = CGA_BG;
+  ctx.fillRect(0, 0, W, H);
+
+  // Subtle scanlines
+  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
+
+  // Pipes
+  ctx.fillStyle = CGA_CYAN;
+  for (const p of s.pipes) {
+    ctx.fillRect(Math.round(p.x), 0, PIPE_W, Math.round(p.gapTop));
+    ctx.fillRect(Math.round(p.x), Math.round(p.gapTop + PIPE_GAP), PIPE_W, H - GROUND - (p.gapTop + PIPE_GAP));
+  }
+
+  // Ground
+  ctx.fillStyle = CGA_FG;
+  ctx.fillRect(0, H - GROUND, W, GROUND);
+  ctx.fillStyle = CGA_BG;
+  for (let x = 0; x < W; x += 12) ctx.fillRect(x, H - GROUND + 6, 6, 4);
+
+  // Bird (magenta square with a black eye)
+  ctx.fillStyle = CGA_MAGENTA;
+  ctx.fillRect(70, Math.round(s.birdY) - 12, 24, 24);
+  ctx.fillStyle = CGA_BG;
+  ctx.fillRect(70 + 16, Math.round(s.birdY) - 8, 4, 4);
+
+  // HUD
+  ctx.fillStyle = CGA_FG;
+  ctx.font = 'bold 14px ui-monospace, monospace';
+  ctx.textBaseline = 'top';
+  ctx.fillText(formatMs(s.runtimeMs), 8, 8);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${s.pipesCleared} pipes`, W - 8, 8);
+  ctx.textAlign = 'left';
+
+  if (s.startedAt === 0) {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = CGA_CYAN;
+    ctx.font = 'bold 18px ui-monospace, monospace';
+    ctx.fillText('press SPACE to flap', W / 2, H / 2 - 30);
+    ctx.fillStyle = CGA_FG;
+    ctx.font = '12px ui-monospace, monospace';
+    ctx.fillText('clear pipes, dodge the floor', W / 2, H / 2);
+    ctx.textAlign = 'left';
+  }
+}

@@ -225,6 +225,22 @@ export const commentReactions = pgTable(
   }),
 );
 
+export const flappyScores = pgTable(
+  'flappy_scores',
+  {
+    id: serial('id').primaryKey(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** Time survived from game start until crash. Stored as ms for precision. */
+    survivedMs: integer('survived_ms').notNull(),
+    /** Pipes passed; tiebreak for runs with the same survival time. */
+    pipesCleared: integer('pipes_cleared').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    bestIdx: index('flappy_scores_best_idx').on(t.userId, t.survivedMs),
+  }),
+);
+
 export const teamCurses = pgTable(
   'team_curses',
   {
@@ -286,5 +302,6 @@ export type MatchComment = typeof matchComments.$inferSelect;
 export type ProfileJab = typeof profileJabs.$inferSelect;
 export type Burn = typeof burns.$inferSelect;
 export type TeamCurse = typeof teamCurses.$inferSelect;
+export type FlappyScore = typeof flappyScores.$inferSelect;
 export type CommentReaction = typeof commentReactions.$inferSelect;
 export type TeamPreference = typeof teamPreferences.$inferSelect;

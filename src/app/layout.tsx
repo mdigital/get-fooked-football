@@ -13,6 +13,7 @@ import { redirect } from 'next/navigation';
 import { avatarFor } from '@/lib/avatar';
 import { displayName } from '@/lib/display-name';
 import { BurnsBanner } from './_burns-banner';
+import { Konami } from './_konami';
 
 export const metadata: Metadata = {
   title: 'Get Fooked — 2026 World Cup tipping',
@@ -159,6 +160,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           )}
           {children}
         </main>
+        <Konami />
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs">
           <span className="brutal-tag-magenta">GET FOOKED</span>
           <span className="ml-2 opacity-100">
