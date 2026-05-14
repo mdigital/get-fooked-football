@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import { BOARD_META, type BoardKey, type BoardRow } from '@/lib/leaderboards-types';
 import { Avatar } from '../_avatar';
+import Link from 'next/link';
 
 type Props = {
   initialBoard: BoardKey;
@@ -91,10 +92,13 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
               <tr key={r.userId} className="border-t border-black/5">
                 <td className="py-2 tabular-nums">{i + 1}</td>
                 <td>
-                  <span className="inline-flex items-center gap-2">
+                  <Link
+                    href={`/profile/${r.userId}`}
+                    className="inline-flex items-center gap-2 hover:underline decoration-2 underline-offset-2"
+                  >
                     <Avatar src={r.avatarSrc} name={r.name} size={24} />
                     {r.name}
-                  </span>
+                  </Link>
                 </td>
                 <td className="text-right tabular-nums">{r.teamCount}</td>
                 <td className="text-right tabular-nums">{r.points}</td>

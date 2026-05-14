@@ -5,8 +5,10 @@ import { getSession } from '@/lib/session';
 import { buildLeaderboard } from '@/lib/leaderboards';
 import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import { tagClassForGroup } from '@/lib/group-color';
+import { getCommentCounts } from '@/lib/match-chat-counts';
 import PolymarketWidget from './_polymarket-widget';
 import LeaderboardWidget from './_leaderboard-widget';
+import { ChatBadge } from './_chat-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +35,8 @@ export default async function HomePage() {
   `);
 
   const top = await buildLeaderboard('overall');
+  const upcomingIds = upcoming.rows.map((row) => Number((row as Record<string, unknown>).id));
+  const commentCounts = await getCommentCounts(upcomingIds);
 
   return (
     <div className="space-y-6">
@@ -78,8 +82,11 @@ export default async function HomePage() {
                 href={`/match/${r.id}`}
                 className="block border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
               >
-                <div className="truncate text-base font-bold">
-                  {home} <span>vs</span> {away}
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0 flex-1 truncate text-base font-bold">
+                    {home} <span>vs</span> {away}
+                  </span>
+                  <ChatBadge count={commentCounts.get(Number(r.id)) ?? 0} className="shrink-0" />
                 </div>
                 <div className="mt-1 flex items-center gap-2 text-xs">
                   <span className="tabular-nums font-bold">

@@ -3,6 +3,8 @@ import { db, schema } from '@/db/client';
 import { asc } from 'drizzle-orm';
 import { fmtNzDay, fmtNzTime, nzZoneAbbr } from '@/lib/format';
 import { tagClassForGroup } from '@/lib/group-color';
+import { getCommentCounts } from '@/lib/match-chat-counts';
+import { ChatBadge } from '../_chat-badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +22,7 @@ export default async function FixturesPage() {
   const fixtures = await db.select().from(schema.fixtures).orderBy(asc(schema.fixtures.kickoff));
   const teams = await db.select().from(schema.teams);
   const teamById = new Map(teams.map((t) => [t.id, t] as const));
+  const commentCounts = await getCommentCounts(fixtures.map((f) => f.id));
 
   const byDay = new Map<string, typeof fixtures>();
   for (const f of fixtures) {
@@ -59,7 +62,8 @@ export default async function FixturesPage() {
                       <span className="px-2">vs</span>
                       {away ? `${away.flag} ${away.name}` : (f.awayLabel ?? 'TBD')}
                     </span>
-                    <span className="whitespace-nowrap text-sm tabular-nums">
+                    <span className="flex items-center gap-3 whitespace-nowrap text-sm tabular-nums">
+                      <ChatBadge count={commentCounts.get(f.id) ?? 0} />
                       {f.status === 'FINISHED' ? (
                         <strong>
                           {f.homeScore} – {f.awayScore}

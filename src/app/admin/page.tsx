@@ -169,7 +169,12 @@ export default async function AdminPage() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className="border-t border-black/5">
-                <td className="py-2 font-medium">{u.name} {u.isAdmin && <span className="ml-1 rounded bg-neon-lime px-1.5 py-0.5 text-xs text-white">admin</span>}</td>
+                <td className="py-2 font-medium">
+                  <Link href={`/profile/${u.id}`} className="hover:underline decoration-2 underline-offset-2">
+                    {u.name}
+                  </Link>
+                  {u.isAdmin && <span className="ml-1 rounded bg-neon-lime px-1.5 py-0.5 text-xs text-white">admin</span>}
+                </td>
                 <td className="opacity-100">{u.email}</td>
                 <td className="text-right tabular-nums">{assignmentsByUser.get(u.id) ?? 0}</td>
                 <td className="text-right">

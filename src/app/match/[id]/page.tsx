@@ -19,6 +19,7 @@ import {
 } from '@/lib/match-chat';
 import PasteImageField from './_paste-image';
 import { Avatar } from '../../_avatar';
+import { UserLink } from '../../_user-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -287,14 +288,16 @@ export default async function MatchPage({
             return (
               <li key={c.id} className="border-[3px] border-current p-3">
                 <div className="flex items-start gap-3">
-                  <Avatar
-                    src={avatarFor({ email: c.userEmail ?? '', avatarUrl: c.userAvatar ?? null }, 48)}
-                    name={commenter}
-                    size={28}
-                  />
+                  <Link href={`/profile/${c.userId}`} aria-label={`${commenter}'s profile`}>
+                    <Avatar
+                      src={avatarFor({ email: c.userEmail ?? '', avatarUrl: c.userAvatar ?? null }, 48)}
+                      name={commenter}
+                      size={28}
+                    />
+                  </Link>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline flex-wrap gap-2">
-                      <span className="font-bold">{commenter}</span>
+                      <UserLink userId={c.userId} name={commenter} className="font-bold" />
                       <span className="text-xs opacity-100">{fmtNzDateTime(c.createdAt)}</span>
                     </div>
                     {c.body && (
@@ -468,7 +471,7 @@ export default async function MatchPage({
           <ul className="space-y-1">
             {history.map((h) => (
               <li key={String(h.id)} className="flex flex-wrap items-center gap-3 border-b border-current/10 py-1 text-sm">
-                <span className="font-bold">{String(h.user_name)}</span>
+                <UserLink userId={Number(h.user_id)} name={String(h.user_name)} className="font-bold" />
                 <span className="font-mono">
                   {(h.home_score as number | null) ?? '?'}–{(h.away_score as number | null) ?? '?'}
                   {h.home_pens != null && h.away_pens != null ? ` (pens ${String(h.home_pens)}–${String(h.away_pens)})` : ''}

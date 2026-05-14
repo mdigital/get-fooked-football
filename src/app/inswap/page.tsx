@@ -6,6 +6,7 @@ import { getSession } from '@/lib/session';
 import { saveUploadedImage } from '@/lib/uploads';
 import { getInswapStandings, sortStandings } from '@/lib/inswap';
 import ThumbButton from './_thumb-button';
+import { UserLink } from '../_user-link';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,7 +100,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.filePath} alt={p.caption ?? 'InSwap entry'} className="aspect-square w-full object-cover" />
                 <div className="p-3 text-sm">
-                  <div className="font-medium">{p.userName}</div>
+                  <UserLink userId={p.userId} name={p.userName} className="font-medium" />
                   {p.caption && <div className="opacity-100">{p.caption}</div>}
                   <div className="mt-2 flex items-center justify-between">
                     <span className="text-xs opacity-100">
