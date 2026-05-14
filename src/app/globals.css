@@ -241,3 +241,28 @@ button,
 textarea {
   font-family: inherit;
 }
+
+/* Football wiggle — fires every time the header ⚽ badge is clicked, to
+   bait people into clicking it again (it takes three to trigger). */
+@keyframes wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg) scale(1);
+  }
+  20% {
+    transform: rotate(-14deg) scale(1.15);
+  }
+  40% {
+    transform: rotate(11deg) scale(1.12);
+  }
+  60% {
+    transform: rotate(-7deg) scale(1.08);
+  }
+  80% {
+    transform: rotate(4deg) scale(1.04);
+  }
+}
+.animate-wiggle {
+  display: inline-block;
+  animation: wiggle 0.45s ease-in-out;
+}

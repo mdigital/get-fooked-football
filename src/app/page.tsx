@@ -11,6 +11,7 @@ import { postBurnAction } from './_burn-actions';
 import PolymarketWidget from './_polymarket-widget';
 import LeaderboardWidget from './_leaderboard-widget';
 import { ChatBadge } from './_chat-badge';
+import { ActivityFeed } from './_activity-feed';
 
 export const dynamic = 'force-dynamic';
 
@@ -134,6 +135,16 @@ export default async function HomePage() {
       <section className="grid gap-4 md:grid-cols-2">
         <LeaderboardWidget initialBoard="overall" initialRows={top} />
         <PolymarketWidget />
+      </section>
+
+      {/* Latest cunting — recent activity feed. */}
+      <section className="brutal-card">
+        <div className="flex items-center justify-between">
+          <h2 className="brutal-h2">Latest cunting</h2>
+        </div>
+        <div className="mt-3">
+          <ActivityFeed limit={8} />
+        </div>
       </section>
     </div>
   );
