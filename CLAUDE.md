@@ -78,7 +78,7 @@ tests/
 ```bash
 npm install
 cp .env.example .env       # set DATABASE_URL + SESSION_SECRET + BOOTSTRAP_ADMIN_*
-npm run db:push            # push Drizzle schema to Postgres
+npm run db:migrate         # apply pending migrations (creates tables on a fresh DB)
 npm run db:seed            # idempotent seed
 npm run dev                # http://localhost:3000
 npm test                   # vitest one-shot
@@ -86,6 +86,37 @@ npm run test:watch         # watch mode while iterating on a feature
 npm run typecheck          # tsc --noEmit
 npm run build              # next build (also runs typecheck)
 ```
+
+## Database migrations
+
+We use **Drizzle migrations**, not `drizzle-kit push`. Push is interactive,
+brittle on composite primary keys, and doesn't track applied state — it cost
+us a broken prod deploy when the schema diverged silently.
+
+The flow:
+
+1. Change `src/db/schema.ts`.
+2. `npm run db:generate` — drizzle-kit writes a numbered SQL file into
+   `drizzle/`. Open it. Read it. If it's destructive, hand-edit (it's just
+   SQL).
+3. `git add drizzle/` — migrations are committed to source control.
+4. `npm run db:migrate` — applies any pending migrations against the
+   connected `DATABASE_URL`. Idempotent — running on an already-up-to-date
+   DB is a no-op.
+
+On Railway, `docker-entrypoint.sh` runs `db:migrate` automatically on
+container start, so a deploy that includes schema changes auto-applies them
+before the app boots. Set `SKIP_MIGRATIONS=1` in env to disable that (e.g.
+rolling the app back without touching the DB).
+
+`scripts/migrate.ts` handles the legacy-DB bootstrap case: if the DB has
+tables but no `drizzle.__drizzle_migrations` journal (because we used to
+`push`), it creates the journal and marks `0000_baseline` as already
+applied so the first migrate run doesn't re-CREATE existing tables.
+
+**`db:push` is not gone**, but it's now for **local-dev-only**: throwaway DBs
+where you want a quick "make the schema match the file" without bothering
+to generate a migration. Never run it on prod.
 
 ## Scoring rules (one source of truth: `src/lib/scoring.ts`)
 

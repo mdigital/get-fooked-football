@@ -16,7 +16,7 @@ Invite-only football tipping for a small group of friends. Random team draw with
 ```bash
 npm install
 cp .env.example .env       # DATABASE_URL, SESSION_SECRET, BOOTSTRAP_ADMIN_*
-npm run db:push            # create schema
+npm run db:migrate         # apply migrations (creates tables on a fresh DB)
 npm run db:seed            # 48 teams + 104 fixtures + starter prizes (idempotent)
 npm run dev
 ```
@@ -60,7 +60,7 @@ New features follow red-green-refactor. See [CLAUDE.md](CLAUDE.md) for the disci
    - `BUY_IN_NZD=100` (optional)
    - `POLYMARKET_EVENT_SLUG=fifa-world-cup-2026-winner` (default — adjust if Polymarket renames it)
 5. Attach a **volume** mounted at `/app/public/uploads`. This is where match stickers, InSwap photos, and other uploads live.
-6. After the first deploy, in the Railway shell: `npm run db:push && npm run db:seed`.
+6. After the first deploy, in the Railway shell: `npm run db:seed` (the container entrypoint already runs `db:migrate` on every start).
 7. Sign in as the bootstrap admin → `/admin` → generate invite → share the link.
 
 `railway.json` configures the Dockerfile builder and a `/api/health` healthcheck.
