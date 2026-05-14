@@ -106,10 +106,13 @@ export default async function MyTeamsPage() {
                 return (
                   <tr key={user.id} className="border-t border-current">
                     <td className="py-2 font-bold">
-                      <span className="inline-flex items-center gap-2">
+                      <Link
+                        href={`/profile/${user.id}`}
+                        className="inline-flex items-center gap-2 hover:underline decoration-2 underline-offset-2"
+                      >
                         <Avatar src={avatarFor({ email: user.email, avatarUrl: user.avatarUrl }, 48)} name={user.name} size={24} />
                         {user.name}{user.id === session.userId ? ' (you)' : ''}
-                      </span>
+                      </Link>
                     </td>
                     <td className="text-right tabular-nums">{pt.length}</td>
                     <td className="text-right">{top ? `${top.flag} ${top.code}` : '—'}</td>
