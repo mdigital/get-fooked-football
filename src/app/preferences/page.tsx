@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { db, schema } from '@/db/client';
 import { and, asc, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
+import { buildTeamTiers } from '@/lib/team-tiers';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,15 +57,10 @@ export default async function PreferencesPage({ searchParams }: { searchParams: 
   const byRank: (number | undefined)[] = [];
   for (const p of prefs) byRank[p.rank - 1] = p.teamId;
 
-  // Show teams grouped by Polymarket tier so picking is easier:
-  //   - Favourites (top 8 by price)
-  //   - Mid-table (next 16)
-  //   - Underdogs (rest)
-  const ranked = teams.slice().sort((a, b) => Number(b.polymarketPrice) - Number(a.polymarketPrice));
-  const favourites = ranked.slice(0, 8);
-  const midtable = ranked.slice(8, 24);
-  const underdogs = ranked.slice(24);
-  const havePrices = ranked.some((t) => Number(t.polymarketPrice) > 0);
+  // Bucket teams into favourites / mid-table / underdogs. Polymarket price
+  // wins when synced; otherwise we fall back to FIFA rank so the dropdown
+  // isn't a meaningless alphabetical-by-group dump.
+  const { favourites, midtable, underdogs, havePrices } = buildTeamTiers(teams);
 
   return (
     <div className="space-y-6">

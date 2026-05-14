@@ -7,6 +7,7 @@ import { getSession } from '@/lib/session';
 import { saveUploadedImage } from '@/lib/uploads';
 import { BUY_IN_DEFAULT, BUY_IN_MAX, BUY_IN_MIN, validateBuyIn } from '@/lib/buy-in';
 import { avatarFor } from '@/lib/avatar';
+import { buildTeamTiers } from '@/lib/team-tiers';
 import { HowItWorksButton } from '../_how-it-works';
 import { BuyInSlider } from './_buy-in-slider';
 
@@ -107,11 +108,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
   const byRank: (number | undefined)[] = [];
   for (const p of prefs) byRank[p.rank - 1] = p.teamId;
 
-  const ranked = teams.slice().sort((a, b) => Number(b.polymarketPrice) - Number(a.polymarketPrice));
-  const favourites = ranked.slice(0, 8);
-  const midtable = ranked.slice(8, 24);
-  const underdogs = ranked.slice(24);
-  const havePrices = ranked.some((t) => Number(t.polymarketPrice) > 0);
+  const { favourites, midtable, underdogs, havePrices } = buildTeamTiers(teams);
 
   const errLabel = err ? ERR_LABEL[err] ?? `Something went wrong: ${decodeURIComponent(err)}` : null;
   const alreadyOnboarded = !!me.onboardedAt;
