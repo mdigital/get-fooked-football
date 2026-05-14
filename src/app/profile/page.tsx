@@ -1,11 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import { db, schema } from '@/db/client';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { avatarFor, gravatarUrl } from '@/lib/avatar';
 import { displayName, nicknameOnly } from '@/lib/display-name';
 import { clearAvatarAction, setNicknameAction, uploadAvatarAction } from './_actions';
+import { WallOfShame, type JabRow } from './_wall-of-shame';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,23 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   const meDisplay = displayName(me);
   const meNick = nicknameOnly(me);
   const current = avatarFor({ email: me.email, avatarUrl: me.avatarUrl }, 240);
+
+  const jabRows = await db
+    .select({
+      id: schema.profileJabs.id,
+      body: schema.profileJabs.body,
+      createdAt: schema.profileJabs.createdAt,
+      authorUserId: schema.profileJabs.authorUserId,
+      authorName: schema.users.name,
+      authorNickname: schema.users.nickname,
+      authorEmail: schema.users.email,
+      authorAvatar: schema.users.avatarUrl,
+    })
+    .from(schema.profileJabs)
+    .leftJoin(schema.users, eq(schema.users.id, schema.profileJabs.authorUserId))
+    .where(and(eq(schema.profileJabs.targetUserId, me.id), isNull(schema.profileJabs.deletedAt)))
+    .orderBy(asc(schema.profileJabs.createdAt));
+  const jabs: JabRow[] = jabRows;
   const gravatar = gravatarUrl(me.email, 240);
   const usingGravatar = !me.avatarUrl;
 
@@ -129,6 +147,15 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
           </form>
         </div>
       )}
+
+      <WallOfShame
+        targetUserId={me.id}
+        targetName={me.name}
+        jabs={jabs}
+        viewerUserId={session.userId ?? null}
+        viewerIsAdmin={!!session.isAdmin}
+        isSelf={true}
+      />
     </div>
   );
 }

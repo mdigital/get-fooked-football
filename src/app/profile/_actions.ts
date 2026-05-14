@@ -1,10 +1,11 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/db/client';
 import { getSession } from '@/lib/session';
 import { saveUploadedImage } from '@/lib/uploads';
+import { validateJabBody } from '@/lib/profile-jabs';
 
 /**
  * Upload an avatar for the target user. Defaults to the signed-in user when
@@ -55,6 +56,59 @@ export async function setNicknameAction(formData: FormData) {
 
   await db.update(schema.users).set({ nickname }).where(eq(schema.users.id, targetId));
   redirect(`${redirectBase}?ok=1`);
+}
+
+/**
+ * Drop a jab onto the target user's wall. Author is the signed-in user.
+ * Any signed-in user can post on any wall — including their own self-burn.
+ */
+export async function postJabAction(formData: FormData) {
+  const s = await getSession();
+  if (!s.userId) redirect('/login');
+
+  const rawTarget = Number(formData.get('target_user_id'));
+  const targetId = Number.isFinite(rawTarget) && rawTarget > 0 ? rawTarget : 0;
+  if (!targetId) redirect('/');
+  const redirectBase = targetId === s.userId ? '/profile' : `/profile/${targetId}`;
+
+  const result = validateJabBody(formData.get('body'));
+  if (!result.ok) redirect(`${redirectBase}?jaberr=${result.reason}#wall`);
+
+  await db.insert(schema.profileJabs).values({
+    targetUserId: targetId,
+    authorUserId: s.userId!,
+    body: result.body,
+  });
+  redirect(`${redirectBase}?ok=1#wall`);
+}
+
+/**
+ * Soft-delete a jab. Only the target of the jab (or an admin) can hide it —
+ * the author is locked in. Author dignity is not protected.
+ */
+export async function deleteJabAction(formData: FormData) {
+  const s = await getSession();
+  if (!s.userId) redirect('/login');
+
+  const jabId = Number(formData.get('jab_id'));
+  if (!Number.isFinite(jabId) || jabId <= 0) redirect('/');
+
+  const [row] = await db
+    .select()
+    .from(schema.profileJabs)
+    .where(eq(schema.profileJabs.id, jabId))
+    .limit(1);
+  if (!row) redirect('/');
+
+  const canDelete = row.targetUserId === s.userId || s.isAdmin;
+  const redirectBase = row.targetUserId === s.userId ? '/profile' : `/profile/${row.targetUserId}`;
+  if (!canDelete) redirect(redirectBase);
+
+  await db
+    .update(schema.profileJabs)
+    .set({ deletedAt: new Date() })
+    .where(and(eq(schema.profileJabs.id, jabId), eq(schema.profileJabs.targetUserId, row.targetUserId)));
+  redirect(`${redirectBase}?ok=1#wall`);
 }
 
 /** Clear the avatar back to the Gravatar fallback for the target user. */

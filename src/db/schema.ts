@@ -225,6 +225,24 @@ export const commentReactions = pgTable(
   }),
 );
 
+export const profileJabs = pgTable(
+  'profile_jabs',
+  {
+    id: serial('id').primaryKey(),
+    /** Whose wall the jab is on. */
+    targetUserId: integer('target_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** Who posted the jab. */
+    authorUserId: integer('author_user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    /** Target (or admin) can soft-delete. Hidden but row preserved. */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    targetIdx: index('profile_jabs_target_idx').on(t.targetUserId, t.createdAt),
+  }),
+);
+
 export type User = typeof users.$inferSelect;
 export type Team = typeof teams.$inferSelect;
 export type Fixture = typeof fixtures.$inferSelect;
@@ -232,5 +250,6 @@ export type Prize = typeof prizes.$inferSelect;
 export type Photo = typeof photos.$inferSelect;
 export type ScoreEdit = typeof scoreEdits.$inferSelect;
 export type MatchComment = typeof matchComments.$inferSelect;
+export type ProfileJab = typeof profileJabs.$inferSelect;
 export type CommentReaction = typeof commentReactions.$inferSelect;
 export type TeamPreference = typeof teamPreferences.$inferSelect;

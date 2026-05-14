@@ -2,11 +2,12 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { db, schema } from '@/db/client';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { avatarFor, gravatarUrl } from '@/lib/avatar';
 import { clearAvatarAction, setNicknameAction, uploadAvatarAction } from '../_actions';
 import { displayName, nicknameOnly } from '@/lib/display-name';
+import { WallOfShame, type JabRow } from '../_wall-of-shame';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +47,23 @@ export default async function HijackProfilePage({
   const targetDisplay = displayName(target);
   const targetNick = nicknameOnly(target);
   const current = avatarFor({ email: target.email, avatarUrl: target.avatarUrl }, 240);
+
+  const jabRows = await db
+    .select({
+      id: schema.profileJabs.id,
+      body: schema.profileJabs.body,
+      createdAt: schema.profileJabs.createdAt,
+      authorUserId: schema.profileJabs.authorUserId,
+      authorName: schema.users.name,
+      authorNickname: schema.users.nickname,
+      authorEmail: schema.users.email,
+      authorAvatar: schema.users.avatarUrl,
+    })
+    .from(schema.profileJabs)
+    .leftJoin(schema.users, eq(schema.users.id, schema.profileJabs.authorUserId))
+    .where(and(eq(schema.profileJabs.targetUserId, target.id), isNull(schema.profileJabs.deletedAt)))
+    .orderBy(asc(schema.profileJabs.createdAt));
+  const jabs: JabRow[] = jabRows;
   const gravatar = gravatarUrl(target.email, 240);
   const usingGravatar = !target.avatarUrl;
 
@@ -163,6 +181,15 @@ export default async function HijackProfilePage({
           </form>
         </div>
       )}
+
+      <WallOfShame
+        targetUserId={target.id}
+        targetName={target.name}
+        jabs={jabs}
+        viewerUserId={session.userId ?? null}
+        viewerIsAdmin={!!session.isAdmin}
+        isSelf={isSelf}
+      />
     </div>
   );
 }
