@@ -6,6 +6,7 @@ import { db, schema } from '@/db/client';
 import { getSession } from '@/lib/session';
 import { saveUploadedImage } from '@/lib/uploads';
 import { validateJabBody } from '@/lib/profile-jabs';
+import { logAudit } from '@/lib/audit';
 
 /**
  * Upload an avatar for the target user. Defaults to the signed-in user when
@@ -32,6 +33,12 @@ export async function uploadAvatarAction(formData: FormData) {
       s.avatarUrl = filePath;
       await s.save();
     }
+    await logAudit({
+      userId: s.userId!,
+      targetUserId: targetId === s.userId ? null : targetId,
+      kind: 'avatar.set',
+      detail: filePath,
+    });
   } catch (err) {
     const code = err instanceof Error ? err.message : 'upload-failed';
     redirect(`${redirectBase}?err=${encodeURIComponent(code)}`);
@@ -55,6 +62,12 @@ export async function setNicknameAction(formData: FormData) {
   const nickname = raw.length > 0 ? raw : null;
 
   await db.update(schema.users).set({ nickname }).where(eq(schema.users.id, targetId));
+  await logAudit({
+    userId: s.userId!,
+    targetUserId: targetId === s.userId ? null : targetId,
+    kind: nickname ? 'nickname.set' : 'nickname.clear',
+    detail: nickname,
+  });
   redirect(`${redirectBase}?ok=1`);
 }
 
@@ -125,5 +138,10 @@ export async function clearAvatarAction(formData: FormData) {
     s.avatarUrl = null;
     await s.save();
   }
+  await logAudit({
+    userId: s.userId!,
+    targetUserId: targetId === s.userId ? null : targetId,
+    kind: 'avatar.clear',
+  });
   redirect(`${redirectBase}?ok=1`);
 }

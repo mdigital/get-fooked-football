@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { and, eq } from 'drizzle-orm';
 import { db, schema } from '@/db/client';
 import { getSession } from '@/lib/session';
+import { logAudit } from '@/lib/audit';
 
 /**
  * Cast or update a curse on a team. Upserts so a second submit replaces
@@ -40,5 +41,6 @@ export async function liftCurseAction(formData: FormData) {
   await db
     .delete(schema.teamCurses)
     .where(and(eq(schema.teamCurses.userId, s.userId!), eq(schema.teamCurses.teamId, teamId)));
+  await logAudit({ userId: s.userId!, kind: 'curse.lift', detail: `team_id=${teamId}` });
   redirect('/teams#curses');
 }

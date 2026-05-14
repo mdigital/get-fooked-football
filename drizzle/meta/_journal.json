@@ -43,6 +43,13 @@
       "when": 1778729414331,
       "tag": "0005_freezing_morgan_stark",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1778732037944,
+      "tag": "0006_round_metal_master",
+      "breakpoints": true
     }
   ]
 }

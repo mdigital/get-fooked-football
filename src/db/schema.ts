@@ -225,6 +225,25 @@ export const commentReactions = pgTable(
   }),
 );
 
+export const auditEvents = pgTable(
+  'audit_events',
+  {
+    id: serial('id').primaryKey(),
+    /** Who did the thing. */
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** When the action affected another user (avatar / nickname hijack). */
+    targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'set null' }),
+    /** Dotted event kind, e.g. "avatar.set", "nickname.clear", "curse.lift", "draw.run". */
+    kind: text('kind').notNull(),
+    /** Freeform extra context — old/new values, team code, fixture id, etc. */
+    detail: text('detail'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    timelineIdx: index('audit_events_timeline_idx').on(t.createdAt),
+  }),
+);
+
 export const flappyScores = pgTable(
   'flappy_scores',
   {
@@ -303,5 +322,6 @@ export type ProfileJab = typeof profileJabs.$inferSelect;
 export type Burn = typeof burns.$inferSelect;
 export type TeamCurse = typeof teamCurses.$inferSelect;
 export type FlappyScore = typeof flappyScores.$inferSelect;
+export type AuditEvent = typeof auditEvents.$inferSelect;
 export type CommentReaction = typeof commentReactions.$inferSelect;
 export type TeamPreference = typeof teamPreferences.$inferSelect;

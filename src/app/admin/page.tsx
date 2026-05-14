@@ -10,6 +10,9 @@ import { submitScoreEdit } from '@/lib/score-edits';
 import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import { getCurrentGroupInvite, rollGroupInvite } from '@/lib/group-invite-db';
 import { formatTimeRemaining, validateInvite } from '@/lib/group-invite';
+import { logAudit } from '@/lib/audit';
+import { OnboardingTab } from './_onboarding-tab';
+import { AuditTab } from './_audit-tab';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,12 +26,12 @@ async function rollInviteAction() {
   'use server';
   const s = await requireAdmin();
   await rollGroupInvite(s.userId!);
-  redirect('/admin#invites');
+  redirect('/admin?tab=invite');
 }
 
 async function doDraw(formData: FormData) {
   'use server';
-  await requireAdmin();
+  const s = await requireAdmin();
   const seedRaw = String(formData.get('seed') ?? '').trim();
   const seed = seedRaw ? Number.parseInt(seedRaw, 10) : undefined;
   const mode = String(formData.get('mode') ?? 'preference');
@@ -37,7 +40,12 @@ async function doDraw(formData: FormData) {
   } else {
     await runPreferenceDraw(Number.isFinite(seed) ? seed : undefined);
   }
-  redirect('/admin#draw');
+  await logAudit({
+    userId: s.userId!,
+    kind: 'draw.run',
+    detail: `mode=${mode}${seedRaw ? ` seed=${seedRaw}` : ''}`,
+  });
+  redirect('/admin?tab=draw');
 }
 
 async function doPolymarketSync() {
@@ -45,10 +53,10 @@ async function doPolymarketSync() {
   await requireAdmin();
   try {
     const r = await syncPolymarketPrices();
-    redirect(`/admin?synced=${r.matched.length}&missing=${r.unmatched.length}#draw`);
+    redirect(`/admin?tab=draw&synced=${r.matched.length}&missing=${r.unmatched.length}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'sync failed';
-    redirect(`/admin?err=${encodeURIComponent(msg)}#draw`);
+    redirect(`/admin?tab=draw&err=${encodeURIComponent(msg)}`);
   }
 }
 
@@ -70,9 +78,9 @@ async function setFixtureResult(formData: FormData) {
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'failed';
-    redirect(`/admin?err=${encodeURIComponent(msg)}#results`);
+    redirect(`/admin?tab=results&err=${encodeURIComponent(msg)}`);
   }
-  redirect('/admin#results');
+  redirect('/admin?tab=results');
 }
 
 async function setFixtureTeams(formData: FormData) {
@@ -82,28 +90,39 @@ async function setFixtureTeams(formData: FormData) {
   const home = parseIntOrNull(formData.get('home_team_id'));
   const away = parseIntOrNull(formData.get('away_team_id'));
   await db.update(schema.fixtures).set({ homeTeamId: home, awayTeamId: away }).where(eq(schema.fixtures.id, id));
-  redirect('/admin#results');
+  redirect('/admin?tab=results');
 }
 
 async function awardPrize(formData: FormData) {
   'use server';
-  await requireAdmin();
+  const s = await requireAdmin();
   const id = Number(formData.get('prize_id'));
   const winner = parseIntOrNull(formData.get('user_id'));
   await db
     .update(schema.prizes)
     .set({ awardedUserId: winner, awardedAt: winner ? new Date() : null })
     .where(eq(schema.prizes.id, id));
-  redirect('/admin#prizes');
+  await logAudit({
+    userId: s.userId!,
+    targetUserId: winner ?? null,
+    kind: winner ? 'prize.award' : 'prize.unaward',
+    detail: `prize_id=${id}`,
+  });
+  redirect('/admin?tab=prizes');
 }
 
 async function togglePaid(formData: FormData) {
   'use server';
-  await requireAdmin();
+  const s = await requireAdmin();
   const id = Number(formData.get('user_id'));
   const paid = formData.get('paid') === 'on';
   await db.update(schema.users).set({ paid }).where(eq(schema.users.id, id));
-  redirect('/admin#players');
+  await logAudit({
+    userId: s.userId!,
+    targetUserId: id === s.userId ? null : id,
+    kind: paid ? 'user.paid' : 'user.unpaid',
+  });
+  redirect('/admin?tab=players');
 }
 
 function parseIntOrNull(v: FormDataEntryValue | null): number | null {
@@ -114,8 +133,27 @@ function parseIntOrNull(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-export default async function AdminPage() {
+const TABS = [
+  { id: 'players', label: 'Players' },
+  { id: 'onboarding', label: 'Onboarding' },
+  { id: 'invite', label: 'Invite' },
+  { id: 'draw', label: 'Draw' },
+  { id: 'results', label: 'Results' },
+  { id: 'prizes', label: 'Prizes' },
+  { id: 'audit', label: 'Audit log' },
+] as const;
+type TabId = (typeof TABS)[number]['id'];
+const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
   await requireAdmin();
+  const { tab: rawTab } = await searchParams;
+  const tab: TabId = (rawTab && TAB_IDS.has(rawTab) ? rawTab : 'players') as TabId;
+
   const [users, groupInvite, teams, fixtures, prizes, assignments] = await Promise.all([
     db.select().from(schema.users).orderBy(asc(schema.users.name)),
     getCurrentGroupInvite(),
@@ -146,15 +184,34 @@ export default async function AdminPage() {
   return (
     <div className="space-y-8">
       <div className="brutal-card">
-        <h1 className="text-xl font-bold">Admin</h1>
-        <p className="text-sm opacity-100">
-          Invite players, run the draw, enter results, award prizes. Take it easy with the “run draw” button —
-          it replaces everyone’s existing teams.
+        <h1 className="brutal-h1 brutal-heading-magenta">Admin</h1>
+        <p className="text-sm opacity-100 mt-2">
+          Invite players, run the draw, enter results, award prizes. Take it easy with the &ldquo;run draw&rdquo; button —
+          it replaces everyone&rsquo;s existing teams.
         </p>
+        <nav className="mt-4 flex flex-wrap gap-1">
+          {TABS.map((t) => {
+            const active = t.id === tab;
+            return (
+              <Link
+                key={t.id}
+                href={`/admin?tab=${t.id}`}
+                className={
+                  active
+                    ? 'brutal-tag-cyan text-xs whitespace-nowrap'
+                    : 'border-[2px] border-current px-2 py-0.5 text-xs font-bold uppercase tracking-wide whitespace-nowrap hover:bg-cga-cyan hover:text-cga-black'
+                }
+              >
+                {t.label}
+              </Link>
+            );
+          })}
+        </nav>
       </div>
 
       {/* Players ---------------------------------------------------------- */}
-      <section id="players" className="brutal-card">
+      {tab === 'players' && (
+      <section className="brutal-card">
         <h2 className="mb-3 text-lg font-semibold">Players ({users.length})</h2>
         <table className="w-full text-left text-sm table-row-hover">
           <thead className="text-xs uppercase opacity-100">
@@ -190,9 +247,14 @@ export default async function AdminPage() {
           </tbody>
         </table>
       </section>
+      )}
+
+      {/* Onboarding ------------------------------------------------------- */}
+      {tab === 'onboarding' && <OnboardingTab />}
 
       {/* Group invite ----------------------------------------------------- */}
-      <section id="invites" className="brutal-card">
+      {tab === 'invite' && (
+      <section className="brutal-card">
         <h2 className="brutal-h2">Group invite link</h2>
         <p className="text-sm opacity-100 mt-2">
           One rolling link the whole crew shares. Valid for 24h. Re-roll any time — old links stop working immediately.
@@ -228,9 +290,11 @@ export default async function AdminPage() {
           </div>
         )}
       </section>
+      )}
 
       {/* Draw ------------------------------------------------------------- */}
-      <section id="draw" className="brutal-card">
+      {tab === 'draw' && (
+      <section className="brutal-card">
         <h2 className="brutal-h2">Run the draw</h2>
         <p className="mt-3 text-sm">
           Each player will get{' '}
@@ -271,9 +335,11 @@ export default async function AdminPage() {
           </form>
         </div>
       </section>
+      )}
 
       {/* Results ---------------------------------------------------------- */}
-      <section id="results" className="brutal-card">
+      {tab === 'results' && (
+      <section className="brutal-card">
         <h2 className="mb-3 text-lg font-semibold">Results</h2>
         <p className="mb-3 text-sm opacity-100">Enter scores as matches finish. For KO ties, fill in penalty scores too.</p>
         <div className="max-h-[60vh] overflow-y-auto pr-1">
@@ -358,9 +424,11 @@ export default async function AdminPage() {
           </table>
         </div>
       </section>
+      )}
 
       {/* Prizes ----------------------------------------------------------- */}
-      <section id="prizes" className="brutal-card">
+      {tab === 'prizes' && (
+      <section className="brutal-card">
         <h2 className="mb-3 text-lg font-semibold">Award prizes</h2>
         <ul className="space-y-2">
           {prizes.map((p) => (
@@ -384,6 +452,10 @@ export default async function AdminPage() {
           ))}
         </ul>
       </section>
+      )}
+
+      {/* Audit log -------------------------------------------------------- */}
+      {tab === 'audit' && <AuditTab />}
     </div>
   );
 }
