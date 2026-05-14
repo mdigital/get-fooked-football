@@ -65,7 +65,7 @@ export default async function PreferencesPage({ searchParams }: { searchParams: 
   return (
     <div className="space-y-6">
       <div className="brutal-card">
-        <h1 className="brutal-h1 brutal-heading-magenta">[ Team preferences ]</h1>
+        <h1 className="brutal-h1 brutal-heading-magenta">Team preferences</h1>
         <p className="text-sm mt-2">
           Pick your three top teams in order of preference. When the draw runs, we'll do our best to give you one of them —
           but everyone is guaranteed one team from the top tier (no one gets stuck with five rubbish countries), and the rest

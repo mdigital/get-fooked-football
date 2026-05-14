@@ -57,7 +57,7 @@ export default async function MyTeamsPage() {
   return (
     <div className="space-y-6">
       <div className="brutal-card">
-        <h1 className="brutal-h1 brutal-heading-magenta">[ My Teams ]</h1>
+        <h1 className="brutal-h1 brutal-heading-magenta">My Teams</h1>
         {!drawDone && (
           <p className="mt-2">
             The draw hasn't happened yet. Set your three preferences on the{' '}

@@ -95,7 +95,7 @@ export default async function InswapPage({ searchParams }: { searchParams: Promi
             const mine = session.userId === p.userId;
             const iVoted = myVotes.has(p.photoId);
             return (
-              <div key={p.photoId} className="overflow-hidden border-[3px] border-black bg-white shadow-brutal-sm">
+              <div key={p.photoId} className="overflow-hidden border-[3px] border-black bg-white text-cga-black shadow-brutal-sm">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={p.filePath} alt={p.caption ?? 'InSwap entry'} className="aspect-square w-full object-cover" />
                 <div className="p-3 text-sm">

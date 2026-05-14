@@ -145,7 +145,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <footer className="mx-auto max-w-6xl px-4 py-8 text-xs">
           <span className="brutal-tag-magenta">GET FOOKED</span>
           <span className="ml-2 opacity-100">
-            <span className="ansi-cyan">═══</span> WC2026 <span className="ansi-cyan">═══</span> built for friends, not bookies
+            <span className="ansi-cyan">═══</span> WC2026 <span className="ansi-cyan">═══</span>
           </span>
         </footer>
       </body>

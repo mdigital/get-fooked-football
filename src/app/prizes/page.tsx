@@ -34,7 +34,7 @@ export default async function PrizesPage() {
   return (
     <div className="space-y-6">
       <div className="brutal-card">
-        <h1 className="brutal-h1 brutal-heading-cyan">[ Prizes ]</h1>
+        <h1 className="brutal-h1 brutal-heading-cyan">Prizes</h1>
         <p className="text-sm opacity-100 mt-2">
           {playerCount} player{playerCount === 1 ? '' : 's'} · avg ${avgBuyIn} buy-in ·{' '}
           <strong>${pot} pot</strong>. Each player picks their own pledge ($20–$500); prize amounts are percentages of the pot.
@@ -64,7 +64,7 @@ export default async function PrizesPage() {
                     <div className="min-w-0 flex-1">
                       <div className="font-bold uppercase">{p.name}</div>
                       <div className="text-sm opacity-100">{p.description}</div>
-                      {p.awardedUserId && <div className="mt-1 text-xs font-bold uppercase">[ Awarded ]</div>}
+                      {p.awardedUserId && <div className="mt-1 text-xs font-bold uppercase">Awarded</div>}
                     </div>
                   </li>
                 );

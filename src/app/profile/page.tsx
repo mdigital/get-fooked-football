@@ -1,41 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { db, schema } from '@/db/client';
 import { eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
-import { saveUploadedImage } from '@/lib/uploads';
 import { avatarFor, gravatarUrl } from '@/lib/avatar';
+import { clearAvatarAction, uploadAvatarAction } from './_actions';
 
 export const dynamic = 'force-dynamic';
-
-async function uploadAvatar(formData: FormData) {
-  'use server';
-  const s = await getSession();
-  if (!s.userId) redirect('/login');
-  const file = formData.get('image') as File | null;
-  if (!file || !file.size) redirect('/profile?err=nofile');
-  try {
-    const filePath = await saveUploadedImage(file);
-    await db.update(schema.users).set({ avatarUrl: filePath }).where(eq(schema.users.id, s.userId!));
-    s.avatarUrl = filePath;
-    await s.save();
-  } catch (err) {
-    const code = err instanceof Error ? err.message : 'upload-failed';
-    redirect(`/profile?err=${encodeURIComponent(code)}`);
-  }
-  redirect('/profile?ok=1');
-}
-
-async function clearAvatar() {
-  'use server';
-  const s = await getSession();
-  if (!s.userId) redirect('/login');
-  await db.update(schema.users).set({ avatarUrl: null }).where(eq(schema.users.id, s.userId!));
-  s.avatarUrl = null;
-  await s.save();
-  redirect('/profile?ok=1');
-}
 
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ err?: string; ok?: string }> }) {
   const { err, ok } = await searchParams;
@@ -61,7 +32,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       <div className="brutal-card">
-        <h1 className="brutal-h1 brutal-heading-cyan">[ Profile ]</h1>
+        <h1 className="brutal-h1 brutal-heading-cyan">Profile</h1>
         <p className="text-sm mt-2">
           Your photo shows up next to your name on leaderboards, match comments and reactions. If you don't upload one,
           we fall back to your{' '}
@@ -109,7 +80,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
 
       <div className="brutal-card">
         <h2 className="brutal-h2">Upload a new photo</h2>
-        <form action={uploadAvatar} className="mt-3 space-y-3">
+        <form action={uploadAvatarAction} className="mt-3 space-y-3">
           <input
             type="file"
             name="image"
@@ -125,7 +96,7 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
       {!usingGravatar && (
         <div className="brutal-card">
           <h2 className="brutal-h2">Back to Gravatar</h2>
-          <form action={clearAvatar} className="mt-3">
+          <form action={clearAvatarAction} className="mt-3">
             <p className="text-sm mb-3">Removes your uploaded photo and falls back to your Gravatar.</p>
             <button type="submit" className="brutal-btn-pink">Use Gravatar instead</button>
           </form>
