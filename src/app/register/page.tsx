@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { db, schema } from '@/db/client';
 import { eq } from 'drizzle-orm';
 import { findInvite, findUserByEmail, hashPassword } from '@/lib/auth';
+import { validateInvite } from '@/lib/group-invite';
 import { getSession } from '@/lib/session';
 
 export const dynamic = 'force-dynamic';
@@ -19,8 +20,10 @@ async function register(formData: FormData) {
   }
 
   const invite = await findInvite(token);
-  if (!invite) redirect(`/register?error=badtoken`);
-  if (invite.usedByUserId) redirect(`/register?error=used`);
+  const check = validateInvite(invite ?? null, new Date());
+  if (!check.ok) {
+    redirect(`/register?error=${check.reason === 'unknown' ? 'badtoken' : check.reason}`);
+  }
 
   const existing = await findUserByEmail(email);
   if (existing) redirect(`/register?token=${encodeURIComponent(token)}&error=existing`);
@@ -31,10 +34,14 @@ async function register(formData: FormData) {
     .values({ email, name, passwordHash, isAdmin: false })
     .returning();
 
-  await db
-    .update(schema.invites)
-    .set({ usedByUserId: user.id, usedAt: new Date() })
-    .where(eq(schema.invites.token, token));
+  // Multi-use (group) invites stay reusable. Single-use email invites stamp
+  // the consuming user so the same token can't be reused.
+  if (!invite!.multiUse) {
+    await db
+      .update(schema.invites)
+      .set({ usedByUserId: user.id, usedAt: new Date() })
+      .where(eq(schema.invites.token, token));
+  }
 
   const session = await getSession();
   session.userId = user.id;
@@ -51,6 +58,7 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   const errMsg = {
     badtoken: 'That invite token isn’t valid.',
     used: 'That invite has already been used.',
+    expired: 'That invite link has expired. Ask whoever shared it for the latest one.',
     existing: 'There’s already an account with that email — try signing in.',
     missing: 'Fill in every field. Password needs at least 8 characters.',
   }[error ?? ''];

@@ -1,13 +1,15 @@
 import Link from 'next/link';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { db, schema } from '@/db/client';
 import { asc, desc, eq } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
-import { generateInviteToken } from '@/lib/auth';
 import { runRandomDraw } from '@/lib/draw';
 import { runPreferenceDraw, syncPolymarketPrices } from '@/lib/preference-draw-db';
 import { submitScoreEdit } from '@/lib/score-edits';
 import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
+import { getCurrentGroupInvite, rollGroupInvite } from '@/lib/group-invite-db';
+import { formatTimeRemaining, validateInvite } from '@/lib/group-invite';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,24 +19,10 @@ async function requireAdmin() {
   return s;
 }
 
-async function createInvite(formData: FormData) {
+async function rollInviteAction() {
   'use server';
   const s = await requireAdmin();
-  const note = String(formData.get('note') ?? '').trim() || null;
-  await db.insert(schema.invites).values({
-    token: generateInviteToken(),
-    note,
-    createdByUserId: s.userId!,
-  });
-  redirect('/admin#invites');
-}
-
-async function deleteInvite(formData: FormData) {
-  'use server';
-  await requireAdmin();
-  const token = String(formData.get('token') ?? '');
-  if (!token) return;
-  await db.delete(schema.invites).where(eq(schema.invites.token, token));
+  await rollGroupInvite(s.userId!);
   redirect('/admin#invites');
 }
 
@@ -128,9 +116,9 @@ function parseIntOrNull(v: FormDataEntryValue | null): number | null {
 
 export default async function AdminPage() {
   await requireAdmin();
-  const [users, invites, teams, fixtures, prizes, assignments] = await Promise.all([
+  const [users, groupInvite, teams, fixtures, prizes, assignments] = await Promise.all([
     db.select().from(schema.users).orderBy(asc(schema.users.name)),
-    db.select().from(schema.invites).orderBy(desc(schema.invites.createdAt)),
+    getCurrentGroupInvite(),
     db.select().from(schema.teams).orderBy(asc(schema.teams.groupName)),
     db.select().from(schema.fixtures).orderBy(asc(schema.fixtures.kickoff)),
     db.select().from(schema.prizes).orderBy(asc(schema.prizes.sortOrder)),
@@ -138,6 +126,16 @@ export default async function AdminPage() {
   ]);
   const teamById = new Map(teams.map((t) => [t.id, t]));
   const userById = new Map(users.map((u) => [u.id, u]));
+
+  // Build the share URL from the incoming request so it matches whatever
+  // domain Railway is currently serving from. Falls back to the path-only
+  // form if proxy headers aren't present.
+  const h = await headers();
+  const proto = h.get('x-forwarded-proto') ?? 'https';
+  const host = h.get('x-forwarded-host') ?? h.get('host') ?? '';
+  const baseUrl = host ? `${proto}://${host}` : '';
+  const inviteState = validateInvite(groupInvite ?? null, new Date());
+  const inviteLink = groupInvite ? `${baseUrl}/join/${encodeURIComponent(groupInvite.token)}` : null;
   const assignmentsByUser = new Map<number, number>();
   for (const a of assignments) {
     if (a.userId == null) continue;
@@ -188,41 +186,42 @@ export default async function AdminPage() {
         </table>
       </section>
 
-      {/* Invites ---------------------------------------------------------- */}
+      {/* Group invite ----------------------------------------------------- */}
       <section id="invites" className="brutal-card">
-        <h2 className="mb-3 text-lg font-semibold">Invites</h2>
-        <form action={createInvite} className="mb-4 flex flex-wrap items-center gap-2">
-          <input className="brutal-input flex-1" name="note" placeholder="Optional note (who's this for?)" />
-          <button className="brutal-btn-primary" type="submit">Generate invite token</button>
-        </form>
-        <ul className="space-y-1">
-          {invites.length === 0 && <li className="opacity-100">No invites yet.</li>}
-          {invites.map((inv) => {
-            const base = '';
-            const link = `${base}/register?token=${encodeURIComponent(inv.token)}`;
-            return (
-              <li key={inv.token} className="flex flex-wrap items-center gap-2 rounded-lg border border-black/5 px-3 py-2">
-                <code className="break-all text-xs">{inv.token}</code>
-                <span className="text-xs opacity-100">{inv.note ?? '—'}</span>
-                {inv.usedByUserId ? (
-                  <span className="rounded bg-black/5 px-2 py-0.5 text-xs">used by {userById.get(inv.usedByUserId)?.name ?? '?'}</span>
-                ) : (
-                  <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-700">unused</span>
-                )}
-                <span className="flex-1" />
-                <Link className="text-xs brutal-link hover:underline" href={link} target="_blank">
-                  link
-                </Link>
-                {!inv.usedByUserId && (
-                  <form action={deleteInvite}>
-                    <input type="hidden" name="token" value={inv.token} />
-                    <button className="brutal-btn-ghost text-xs" type="submit">delete</button>
-                  </form>
-                )}
-              </li>
-            );
-          })}
-        </ul>
+        <h2 className="brutal-h2">Group invite link</h2>
+        <p className="text-sm opacity-100 mt-2">
+          One rolling link the whole crew shares. Valid for 24h. Re-roll any time — old links stop working immediately.
+        </p>
+        {groupInvite && inviteState.ok ? (
+          <div className="mt-4 border-[3px] border-current p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="brutal-tag-cyan text-xs">{formatTimeRemaining(groupInvite.expiresAt, new Date())}</span>
+              <span className="text-xs opacity-100">created {fmtNzDateTime(groupInvite.createdAt)}</span>
+            </div>
+            <div className="mt-2">
+              <code className="break-all text-xs">{inviteLink}</code>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link className="brutal-btn-cyan text-xs" href={`/join/${encodeURIComponent(groupInvite.token)}`} target="_blank">
+                Open link →
+              </Link>
+              <form action={rollInviteAction}>
+                <button className="brutal-btn-pink text-xs" type="submit">Re-roll (invalidates current link)</button>
+              </form>
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4">
+            {groupInvite && !inviteState.ok && (
+              <p className="brutal-error mb-3 text-sm">
+                Current link has {inviteState.reason === 'expired' ? 'expired' : 'a problem'}. Roll a new one.
+              </p>
+            )}
+            <form action={rollInviteAction}>
+              <button className="brutal-btn-primary" type="submit">Generate group invite link</button>
+            </form>
+          </div>
+        )}
       </section>
 
       {/* Draw ------------------------------------------------------------- */}

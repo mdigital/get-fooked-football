@@ -30,6 +30,10 @@ export const invites = pgTable(
     note: text('note'),
     usedByUserId: integer('used_by_user_id').references(() => users.id),
     usedAt: timestamp('used_at', { withTimezone: true }),
+    /** Multi-use group invite (one rolling link the whole crew shares). */
+    multiUse: boolean('multi_use').notNull().default(false),
+    /** Token stops working at this time. Null => never expires (legacy). */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
     createdByUserId: integer('created_by_user_id').references(() => users.id),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
