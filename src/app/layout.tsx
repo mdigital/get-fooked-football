@@ -10,6 +10,7 @@ import { headers } from 'next/headers';
 import { db, schema } from '@/db/client';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
+import { avatarFor } from '@/lib/avatar';
 
 export const metadata: Metadata = {
   title: 'Get Fooked — 2026 World Cup tipping',
@@ -110,7 +111,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                 <>
                   <Link href="/profile" className="flex items-center gap-2 hover:bg-cga-cyan hover:text-cga-black px-1 py-1" title="Edit profile">
                     <Avatar
-                      user={{ email: session.email ?? '', avatarUrl: session.avatarUrl, name: session.name }}
+                      src={avatarFor({ email: session.email ?? '', avatarUrl: session.avatarUrl ?? null }, 56)}
+                      name={session.name}
                       size={28}
                     />
                     <span className="hidden sm:inline font-bold">{session.name}</span>

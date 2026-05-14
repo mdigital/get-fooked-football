@@ -92,7 +92,7 @@ export default function LeaderboardClient({ initialBoard, initialRows, initialMe
                 <td className="py-2 tabular-nums">{i + 1}</td>
                 <td>
                   <span className="inline-flex items-center gap-2">
-                    <Avatar user={{ email: r.email, avatarUrl: r.avatarUrl, name: r.name }} size={24} />
+                    <Avatar src={r.avatarSrc} name={r.name} size={24} />
                     {r.name}
                   </span>
                 </td>

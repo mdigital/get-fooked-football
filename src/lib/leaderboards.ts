@@ -1,5 +1,6 @@
 import { db, schema } from '@/db/client';
 import { computeTeamScores } from './scoring';
+import { avatarFor } from './avatar';
 import type { Fixture, Team, User } from '@/db/schema';
 
 export { BOARD_META } from './leaderboards-types';
@@ -34,8 +35,7 @@ export function computeLeaderboard(
     rows.set(u.id, {
       userId: u.id,
       name: u.name,
-      email: u.email,
-      avatarUrl: u.avatarUrl ?? null,
+      avatarSrc: avatarFor({ email: u.email, avatarUrl: u.avatarUrl ?? null }, 48),
       teamCount: 0,
       points: 0,
       weight: 0,

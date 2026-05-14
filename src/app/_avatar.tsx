@@ -1,25 +1,28 @@
 /* eslint-disable @next/next/no-img-element */
-import { avatarFor, type AvatarUser } from '@/lib/avatar';
-
 /**
- * Tiny avatar component. Uses a plain <img> (rather than next/image) so we
- * don't have to whitelist gravatar.com in next.config — keeps the static
- * export simple. CGA-style hard border, no rounded corners.
+ * Dumb avatar component — just a CGA-styled <img>. Takes a pre-resolved `src`
+ * so this file has zero server-only imports (no node:crypto) and can be safely
+ * bundled into client components like the leaderboard widget.
+ *
+ * Server callers compute the URL via `avatarFor()` from `@/lib/avatar`;
+ * client callers receive a `src` that was computed server-side (e.g. on
+ * BoardRow.avatarSrc).
  */
 export function Avatar({
-  user,
+  src,
+  name,
   size = 32,
   className = '',
 }: {
-  user: AvatarUser & { name?: string };
+  src: string;
+  name?: string;
   size?: number;
   className?: string;
 }) {
-  const src = avatarFor(user, size * 2); // 2× for retina
   return (
     <img
       src={src}
-      alt={user.name ? `${user.name}'s avatar` : 'avatar'}
+      alt={name ? `${name}'s avatar` : 'avatar'}
       width={size}
       height={size}
       className={`inline-block border-[2px] border-current ${className}`}

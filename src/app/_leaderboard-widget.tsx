@@ -71,7 +71,7 @@ export default function LeaderboardWidget({
             {rows.slice(0, 5).map((row, i) => (
               <li key={row.userId} className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 border-[2px] border-current px-2 py-1">
                 <span className="font-bold tabular-nums">{i + 1}.</span>
-                <Avatar user={{ email: row.email, avatarUrl: row.avatarUrl, name: row.name }} size={20} />
+                <Avatar src={row.avatarSrc} name={row.name} size={20} />
                 <span className="truncate">{row.name}</span>
                 <span className="text-sm font-bold tabular-nums">
                   {row.weightedPoints} <span className="text-xs opacity-100">{meta.unit}</span>

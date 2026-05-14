@@ -7,9 +7,9 @@ export type BoardKey = 'overall' | 'population' | 'sheep' | 'fifa_underdog' | 'g
 export type BoardRow = {
   userId: number;
   name: string;
-  /** Email + avatarUrl let the client render an Avatar without extra fetches. */
-  email: string;
-  avatarUrl: string | null;
+  /** Pre-resolved avatar URL (uploaded path or Gravatar) so client renderers
+   *  don't need to import node:crypto. Computed server-side. */
+  avatarSrc: string;
   teamCount: number;
   points: number;
   weight: number;
