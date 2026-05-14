@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Single source of truth for the "how the league works" explainer.
@@ -16,6 +17,10 @@ export function HowItWorksButton({
   label?: string;
 }) {
   const [open, setOpen] = useState(false);
+  // Track when we're hydrated so the portal target (document.body) is safe to
+  // reach for. createPortal during SSR would otherwise error.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   // Close on Escape.
   useEffect(() => {
@@ -33,24 +38,24 @@ export function HowItWorksButton({
     };
   }, [open]);
 
-  return (
-    <>
-      <button type="button" className={className} onClick={() => setOpen(true)}>
-        {label}
-      </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="how-it-works-title"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
-          // Custom dim — the CGA palette is too saturated for a tinted overlay,
-          // so just go to solid-ish black behind the card.
-          style={{ background: 'rgba(0,0,0,0.7)' }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setOpen(false);
-          }}
-        >
+  // Render the overlay into <body> via a portal so it escapes any ancestor
+  // stacking context (the header is `position: relative; z-index: 1`, which
+  // would otherwise sandwich the modal below `<main>`'s own z:1 layer).
+  const overlay =
+    open && mounted
+      ? createPortal(
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="how-it-works-title"
+            className="fixed inset-0 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
+            // Use an explicit huge z-index — z-50 only protects within a
+            // stacking context, but the body has none of those above us now.
+            style={{ background: 'rgba(0,0,0,0.7)', zIndex: 2147483647 }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setOpen(false);
+            }}
+          >
           <div className="brutal-card max-w-2xl w-full bg-white text-cga-black dark:bg-cga-black dark:text-cga-white">
             <div className="flex items-start justify-between gap-3">
               <h2 id="how-it-works-title" className="brutal-h1 brutal-heading-magenta">How it works</h2>
@@ -109,8 +114,17 @@ export function HowItWorksButton({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        </div>,
+        document.body,
+      )
+      : null;
+
+  return (
+    <>
+      <button type="button" className={className} onClick={() => setOpen(true)}>
+        {label}
+      </button>
+      {overlay}
     </>
   );
 }
