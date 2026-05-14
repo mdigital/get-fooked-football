@@ -21,6 +21,7 @@ async function login(formData: FormData) {
   session.email = user.email;
   session.name = user.name;
   session.isAdmin = user.isAdmin;
+  session.avatarUrl = user.avatarUrl;
   await session.save();
   redirect('/');
 }

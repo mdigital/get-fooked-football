@@ -13,7 +13,7 @@ export type AssignmentInput = { teamId: number; userId: number | null; isLeftove
  */
 export function computeLeaderboard(
   kind: BoardKey,
-  users: Pick<User, 'id' | 'name'>[],
+  users: Pick<User, 'id' | 'name' | 'email' | 'avatarUrl'>[],
   teams: Pick<Team, 'id' | 'population' | 'sheep' | 'fifaRank'>[],
   assignments: AssignmentInput[],
   fixtures: Fixture[],
@@ -31,7 +31,16 @@ export function computeLeaderboard(
 
   const rows = new Map<number, BoardRow>();
   for (const u of users) {
-    rows.set(u.id, { userId: u.id, name: u.name, teamCount: 0, points: 0, weight: 0, weightedPoints: 0 });
+    rows.set(u.id, {
+      userId: u.id,
+      name: u.name,
+      email: u.email,
+      avatarUrl: u.avatarUrl ?? null,
+      teamCount: 0,
+      points: 0,
+      weight: 0,
+      weightedPoints: 0,
+    });
   }
   for (const a of assignments) {
     if (a.userId == null || a.isLeftover) continue;

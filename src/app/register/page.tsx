@@ -41,6 +41,7 @@ async function register(formData: FormData) {
   session.email = user.email;
   session.name = user.name;
   session.isAdmin = false;
+  session.avatarUrl = null;
   await session.save();
   redirect('/');
 }

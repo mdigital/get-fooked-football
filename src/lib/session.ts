@@ -6,6 +6,8 @@ export type SessionData = {
   email?: string;
   name?: string;
   isAdmin?: boolean;
+  /** Path to a self-uploaded avatar, or undefined to fall back to Gravatar. */
+  avatarUrl?: string | null;
 };
 
 const password = process.env.SESSION_SECRET;

@@ -28,6 +28,9 @@ export function makeUser(over: Partial<User> & { id: number; name: string }): Us
     passwordHash: over.passwordHash ?? 'fake-hash',
     isAdmin: over.isAdmin ?? false,
     paid: over.paid ?? false,
+    avatarUrl: over.avatarUrl ?? null,
+    buyIn: over.buyIn ?? 100,
+    onboardedAt: over.onboardedAt ?? null,
     createdAt: over.createdAt ?? new Date('2026-05-01T00:00:00Z'),
   };
 }

@@ -9,6 +9,12 @@ export const users = pgTable(
     passwordHash: text('password_hash').notNull(),
     isAdmin: boolean('is_admin').notNull().default(false),
     paid: boolean('paid').notNull().default(false),
+    /** /uploads/<file> path to a self-uploaded avatar. Null => Gravatar. */
+    avatarUrl: text('avatar_url'),
+    /** NZD this user has pledged to the pot. Clamped to BUY_IN_MIN..BUY_IN_MAX. */
+    buyIn: integer('buy_in').notNull().default(100),
+    /** Set when the user completes the /onboarding form. Null => still needs to. */
+    onboardedAt: timestamp('onboarded_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({

@@ -3,6 +3,7 @@ import { asc } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { computeTeamScores } from '@/lib/scoring';
 import { tagClassForGroup } from '@/lib/group-color';
+import { Avatar } from '../_avatar';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -103,7 +104,12 @@ export default async function MyTeamsPage() {
                 const top = pt.find((t) => topSeedIds.has(t.id));
                 return (
                   <tr key={user.id} className="border-t border-current">
-                    <td className="py-2 font-bold">{user.name}{user.id === session.userId ? ' (you)' : ''}</td>
+                    <td className="py-2 font-bold">
+                      <span className="inline-flex items-center gap-2">
+                        <Avatar user={{ email: user.email, avatarUrl: user.avatarUrl, name: user.name }} size={24} />
+                        {user.name}{user.id === session.userId ? ' (you)' : ''}
+                      </span>
+                    </td>
                     <td className="text-right tabular-nums">{pt.length}</td>
                     <td className="text-right">{top ? `${top.flag} ${top.code}` : '—'}</td>
                     <td className="text-right font-bold tabular-nums">{(totals.odds * 100).toFixed(1)}%</td>

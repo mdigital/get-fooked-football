@@ -1,6 +1,7 @@
 import { db, schema } from '@/db/client';
 import { asc } from 'drizzle-orm';
 import { prizePotShare, totalAllocatedPct } from '@/lib/prizes';
+import { computePot } from '@/lib/buy-in';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +16,10 @@ const CATEGORY_ORDER = ['GRAND', 'BOARD', 'SPECIAL', 'INSWAP'];
 
 export default async function PrizesPage() {
   const prizes = await db.select().from(schema.prizes).orderBy(asc(schema.prizes.sortOrder));
-  const playerCount = (await db.select({ id: schema.users.id }).from(schema.users)).length;
-  const buyIn = Number(process.env.BUY_IN_NZD ?? 100);
-  const pot = playerCount * buyIn;
+  const players = await db.select({ id: schema.users.id, buyIn: schema.users.buyIn }).from(schema.users);
+  const playerCount = players.length;
+  const pot = computePot(players);
+  const avgBuyIn = playerCount > 0 ? Math.round(pot / playerCount) : 0;
 
   const decoratedPrizes = prizes.map((p) => ({ ...p, pctNum: Number(p.pctOfPot) }));
   const allocatedPct = totalAllocatedPct(decoratedPrizes.map((p) => ({ pctOfPot: p.pctNum })));
@@ -34,8 +36,8 @@ export default async function PrizesPage() {
       <div className="brutal-card">
         <h1 className="brutal-h1 brutal-heading-cyan">[ Prizes ]</h1>
         <p className="text-sm opacity-100 mt-2">
-          ${buyIn} buy-in · {playerCount} player{playerCount === 1 ? '' : 's'} ·{' '}
-          <strong>${pot.toFixed(0)} pot</strong>. Prize amounts are percentages of the pot, so they scale with the crew.
+          {playerCount} player{playerCount === 1 ? '' : 's'} · avg ${avgBuyIn} buy-in ·{' '}
+          <strong>${pot} pot</strong>. Each player picks their own pledge ($20–$500); prize amounts are percentages of the pot.
         </p>
         {Math.abs(allocatedPct - 100) > 0.01 && (
           <p className="brutal-error mt-3">

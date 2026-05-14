@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from 'react';
 import Link from 'next/link';
 import { BOARD_META, type BoardKey, type BoardRow } from '@/lib/leaderboards-types';
+import { Avatar } from './_avatar';
 
 /**
  * Compact homepage leaderboard widget: shows the top 5 for the chosen board
@@ -68,8 +69,9 @@ export default function LeaderboardWidget({
         ) : (
           <ol className="space-y-1">
             {rows.slice(0, 5).map((row, i) => (
-              <li key={row.userId} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 border-[2px] border-current px-2 py-1">
+              <li key={row.userId} className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2 border-[2px] border-current px-2 py-1">
                 <span className="font-bold tabular-nums">{i + 1}.</span>
+                <Avatar user={{ email: row.email, avatarUrl: row.avatarUrl, name: row.name }} size={20} />
                 <span className="truncate">{row.name}</span>
                 <span className="text-sm font-bold tabular-nums">
                   {row.weightedPoints} <span className="text-xs opacity-100">{meta.unit}</span>

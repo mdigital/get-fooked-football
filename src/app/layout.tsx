@@ -4,6 +4,12 @@ import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { bootstrapAdminIfNeeded } from '@/lib/auth';
 import ThemeToggle from './_theme-toggle';
+import { Avatar } from './_avatar';
+import { HowItWorksButton } from './_how-it-works';
+import { headers } from 'next/headers';
+import { db, schema } from '@/db/client';
+import { eq } from 'drizzle-orm';
+import { redirect } from 'next/navigation';
 
 export const metadata: Metadata = {
   title: 'Get Fooked — 2026 World Cup tipping',
@@ -17,6 +23,7 @@ const NAV: Array<[string, string]> = [
   ['Boards', '/leaderboards'],
   ['InSwap', '/inswap'],
   ['Prizes', '/prizes'],
+  ['Profile', '/profile'],
   ['Help', '/help'],
 ];
 
@@ -33,6 +40,9 @@ const THEME_BOOTSTRAP = `
 })();
 `;
 
+/** Paths that signed-in-but-not-onboarded users are allowed to view. */
+const ONBOARDING_ALLOWLIST = new Set(['/onboarding', '/login', '/register', '/logout']);
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   try {
     await bootstrapAdminIfNeeded();
@@ -41,6 +51,29 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   try {
     session = await getSession();
   } catch {}
+
+  // Gate: a signed-in user with no onboardedAt is bounced to /onboarding.
+  // Path comes from middleware (x-pathname). API/_next requests are excluded
+  // by the middleware matcher so we never see them here.
+  let needsOnboarding = false;
+  if (session?.userId) {
+    try {
+      const h = await headers();
+      const pathname = h.get('x-pathname') ?? '/';
+      const exempt = ONBOARDING_ALLOWLIST.has(pathname) || pathname.startsWith('/api/');
+      if (!exempt) {
+        const [me] = await db
+          .select({ onboardedAt: schema.users.onboardedAt })
+          .from(schema.users)
+          .where(eq(schema.users.id, session.userId))
+          .limit(1);
+        if (me && !me.onboardedAt) needsOnboarding = true;
+      }
+    } catch {
+      // DB hiccup in the gate shouldn't blank the whole app.
+    }
+  }
+  if (needsOnboarding) redirect('/onboarding');
 
   return (
     <html lang="en">
@@ -71,10 +104,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ))}
             </nav>
             <div className="flex items-center gap-2 text-sm">
+              <HowItWorksButton className="hidden md:inline-flex border-[2px] border-current px-2 py-1 text-xs font-bold uppercase tracking-wide hover:bg-cga-cyan hover:text-cga-black" label="How it works" />
               <ThemeToggle />
               {session?.userId ? (
                 <>
-                  <span className="hidden sm:inline font-bold">{session.name}</span>
+                  <Link href="/profile" className="flex items-center gap-2 hover:bg-cga-cyan hover:text-cga-black px-1 py-1" title="Edit profile">
+                    <Avatar
+                      user={{ email: session.email ?? '', avatarUrl: session.avatarUrl, name: session.name }}
+                      size={28}
+                    />
+                    <span className="hidden sm:inline font-bold">{session.name}</span>
+                  </Link>
                   {session.isAdmin && (
                     <Link className="border-[3px] border-current px-2 py-1 text-xs font-bold uppercase hover:bg-cga-cyan hover:text-cga-black" href="/admin">
                       Admin
