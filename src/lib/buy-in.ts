@@ -44,3 +44,16 @@ export function computePot(users: Array<{ buyIn: number | string | null | undefi
   }
   return total;
 }
+
+/**
+ * The biggest pledge in the group — the reference point for the proportional
+ * winnings cap. Whoever put in the most gets to collect prizes in full.
+ */
+export function topBuyIn(users: Array<{ buyIn: number | string | null | undefined }>): number {
+  let max = 0;
+  for (const u of users) {
+    const n = typeof u.buyIn === 'number' ? u.buyIn : Number(u.buyIn ?? 0);
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max;
+}
