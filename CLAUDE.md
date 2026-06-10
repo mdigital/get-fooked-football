@@ -54,6 +54,8 @@ src/
     draw.ts                — planDraw (pure) + runRandomDraw (DB)
     scoring.ts             — pointsForFixture + computeTeamScores (pure)
     leaderboards.ts        — computeLeaderboard (pure) + buildLeaderboard (DB)
+    bracket.ts             — group standings (FIFA tiebreakers) + KO slot fill planner (pure);
+                             admin "Bracket" panel applies the plan
     score-edits.ts         — validateScoreEdit (pure) + submitScoreEdit (DB + audit log)
     inswap.ts              — InSwap standings + sort (pure)
     uploads.ts             — local image saver
