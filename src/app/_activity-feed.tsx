@@ -185,7 +185,7 @@ export async function ActivityFeed({ limit = 60 }: { limit?: number }) {
           className="flex items-baseline gap-3 border-t border-current/10 py-2 text-sm"
         >
           <span className="brutal-pill text-[10px] leading-none whitespace-nowrap">{it.kind}</span>
-          <span className="min-w-0 flex-1">{it.detail}</span>
+          <span className="min-w-0 flex-1 break-words">{it.detail}</span>
           <span className="text-xs opacity-100 whitespace-nowrap">{fmtNzDateTime(it.when)}</span>
         </li>
       ))}

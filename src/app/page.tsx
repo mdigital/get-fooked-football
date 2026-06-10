@@ -26,6 +26,7 @@ export default async function HomePage() {
 
   const upcoming = await db.execute(sql`
     select f.id, f.kickoff, f.stage, f.group_name,
+           f.home_team_id, f.away_team_id,
            ht.name as home_name, ht.flag as home_flag,
            at.name as away_name, at.flag as away_flag,
            f.home_label, f.away_label
@@ -40,6 +41,19 @@ export default async function HomePage() {
   const top = await buildLeaderboard('overall');
   const upcomingIds = upcoming.rows.map((row) => Number((row as Record<string, unknown>).id));
   const commentCounts = await getCommentCounts(upcomingIds);
+
+  // Who drew each team, so each fixture shows whose match it is.
+  const [assignments, players] = await Promise.all([
+    db.select().from(schema.teamAssignments),
+    db.select().from(schema.users),
+  ]);
+  const playerById = new Map(players.map((u) => [u.id, u] as const));
+  const ownerByTeamId = new Map<number, string>();
+  for (const a of assignments) {
+    if (a.userId == null || a.isLeftover) continue;
+    const owner = playerById.get(a.userId);
+    if (owner) ownerByTeamId.set(a.teamId, owner.name);
+  }
 
   return (
     <div className="space-y-6">
@@ -88,7 +102,7 @@ export default async function HomePage() {
           <h2 className="brutal-h2">Next fixtures</h2>
           <Link href="/fixtures" className="text-sm brutal-link">All fixtures →</Link>
         </div>
-        <ul className="mt-3 grid gap-2 md:grid-cols-2">
+        <ul className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
           {upcoming.rows.length === 0 && (
             <li className="opacity-100">No fixtures yet — run the seed script.</li>
           )}
@@ -99,28 +113,41 @@ export default async function HomePage() {
             const away = (r.away_flag ? `${r.away_flag} ${r.away_name}` : r.away_label) as string;
             const stage = r.stage as string;
             const group = r.group_name as string | null;
+            const homeOwner = r.home_team_id ? ownerByTeamId.get(Number(r.home_team_id)) : undefined;
+            const awayOwner = r.away_team_id ? ownerByTeamId.get(Number(r.away_team_id)) : undefined;
+            const TeamRow = ({ team, owner }: { team: string; owner?: string }) => (
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="min-w-0 truncate text-base font-bold">{team}</span>
+                {owner && (
+                  <span className="shrink-0 whitespace-nowrap text-xs">
+                    <span className="ansi-cyan">▒</span> {owner}
+                  </span>
+                )}
+              </div>
+            );
             return (
               <Link
                 key={i}
                 href={`/match/${r.id}`}
                 className="block border-[2px] border-current px-3 py-2 hover:bg-cga-cyan hover:text-cga-black"
               >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="min-w-0 flex-1 truncate text-base font-bold">
-                    {home} <span>vs</span> {away}
-                  </span>
-                  <ChatBadge count={commentCounts.get(Number(r.id)) ?? 0} className="shrink-0" />
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1 space-y-0.5">
+                    <TeamRow team={home} owner={homeOwner} />
+                    <TeamRow team={away} owner={awayOwner} />
+                  </div>
+                  <ChatBadge count={commentCounts.get(Number(r.id)) ?? 0} className="mt-0.5 shrink-0" />
                 </div>
-                <div className="mt-1 flex items-center gap-2 text-xs">
-                  <span className="tabular-nums font-bold">
+                <div className="mt-1.5 flex items-center gap-2 text-xs">
+                  <span className="whitespace-nowrap tabular-nums font-bold">
                     {fmtNzDateTime(date)} {nzZoneAbbr(date)}
                   </span>
                   {group ? (
-                    <span className={`hidden sm:inline-flex ${tagClassForGroup(group)} text-[10px] leading-none`}>
+                    <span className={`inline-flex ${tagClassForGroup(group)} text-[10px] leading-none`}>
                       Group {group}
                     </span>
                   ) : (
-                    <span className="hidden sm:inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
+                    <span className="inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
                       {stage}
                     </span>
                   )}
