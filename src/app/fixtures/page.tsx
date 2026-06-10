@@ -24,6 +24,19 @@ export default async function FixturesPage() {
   const teamById = new Map(teams.map((t) => [t.id, t] as const));
   const commentCounts = await getCommentCounts(fixtures.map((f) => f.id));
 
+  // Who drew each team — shown on every row so you know whose match it is.
+  const [assignments, users] = await Promise.all([
+    db.select().from(schema.teamAssignments),
+    db.select().from(schema.users),
+  ]);
+  const userById = new Map(users.map((u) => [u.id, u] as const));
+  const ownerByTeamId = new Map<number, string>();
+  for (const a of assignments) {
+    if (a.userId == null || a.isLeftover) continue;
+    const owner = userById.get(a.userId);
+    if (owner) ownerByTeamId.set(a.teamId, owner.name);
+  }
+
   const byDay = new Map<string, typeof fixtures>();
   for (const f of fixtures) {
     const day = fmtNzDay(f.kickoff);
@@ -48,6 +61,8 @@ export default async function FixturesPage() {
               const away = f.awayTeamId ? teamById.get(f.awayTeamId) : undefined;
               const time = fmtNzTime(f.kickoff);
               const zone = nzZoneAbbr(f.kickoff);
+              const homeOwner = f.homeTeamId ? ownerByTeamId.get(f.homeTeamId) : undefined;
+              const awayOwner = f.awayTeamId ? ownerByTeamId.get(f.awayTeamId) : undefined;
               const stageLabel = STAGE_LABEL[f.stage] ?? f.stage;
               const groupTagClass = f.groupName ? tagClassForGroup(f.groupName) : null;
               return (
@@ -74,7 +89,7 @@ export default async function FixturesPage() {
                     </span>
                   </div>
                   <div className="mt-1 flex items-center gap-2 text-xs">
-                    <span className="tabular-nums font-bold">
+                    <span className="whitespace-nowrap tabular-nums font-bold">
                       {time} {zone}
                     </span>
                     {f.groupName && groupTagClass ? (
@@ -84,6 +99,14 @@ export default async function FixturesPage() {
                     ) : (
                       <span className="hidden sm:inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
                         {stageLabel}
+                      </span>
+                    )}
+                    {(homeOwner || awayOwner) && (
+                      <span className="ml-auto flex min-w-0 items-center">
+                        <span className="ansi-cyan">▒&nbsp;</span>
+                        <span className="truncate">{homeOwner ?? '—'}</span>
+                        <span className="px-1 opacity-50">v</span>
+                        <span className="truncate">{awayOwner ?? '—'}</span>
                       </span>
                     )}
                   </div>
