@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { getSession } from '@/lib/session';
 import { bootstrapAdminIfNeeded } from '@/lib/auth';
 import ThemeToggle from './_theme-toggle';
-import { Avatar } from './_avatar';
 import { HowItWorksButton } from './_how-it-works';
+import { UserMenu } from './_user-menu';
 import { headers } from 'next/headers';
 import { db, schema } from '@/db/client';
 import { eq } from 'drizzle-orm';
@@ -21,15 +21,14 @@ export const metadata: Metadata = {
   description: 'Invite-only football tipping for cunts. Random teams, weird leaderboards, real prizes.',
 };
 
+// Primary nav. Account-y links (Profile, Preferences, How-it-works, Admin,
+// Sign out) live in the avatar dropdown (see UserMenu) to save space.
 const NAV: Array<[string, string]> = [
   ['Fixtures', '/fixtures'],
-  ['Preferences', '/preferences'],
   ['My Teams', '/teams'],
   ['Boards', '/leaderboards'],
   ['InSwap', '/inswap'],
   ['Prizes', '/prizes'],
-  ['Profile', '/profile'],
-  ['Help', '/help'],
 ];
 
 // Runs synchronously before hydration so the page paints in the user's theme
@@ -122,31 +121,20 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               ))}
             </nav>
             <div className="flex items-center gap-2 text-sm">
-              <HowItWorksButton className="hidden md:inline-flex border-[2px] border-current px-2 py-1 text-xs font-bold uppercase tracking-wide hover:bg-cga-cyan hover:text-cga-black" label="How it works" />
               <ThemeToggle />
               {session?.userId ? (
-                <>
-                  <Link href="/profile" className="flex items-center gap-2 hover:bg-cga-cyan hover:text-cga-black px-1 py-1" title="Edit profile">
-                    <Avatar
-                      src={avatarFor({ email: meRow?.email ?? session.email ?? '', avatarUrl: meRow?.avatarUrl ?? session.avatarUrl ?? null }, 56)}
-                      name={meDisplay}
-                      size={28}
-                    />
-                    <span className="hidden sm:inline font-bold">{meDisplay}</span>
-                  </Link>
-                  {session.isAdmin && (
-                    <Link className="border-[3px] border-current px-2 py-1 text-xs font-bold uppercase hover:bg-cga-cyan hover:text-cga-black" href="/admin">
-                      Admin
-                    </Link>
-                  )}
-                  <form action="/api/auth/logout" method="post">
-                    <button className="border-[3px] border-current px-2 py-1 text-xs font-bold uppercase hover:bg-cga-magenta hover:text-cga-black" type="submit">Sign out</button>
-                  </form>
-                </>
+                <UserMenu
+                  name={meDisplay}
+                  avatarSrc={avatarFor({ email: meRow?.email ?? session.email ?? '', avatarUrl: meRow?.avatarUrl ?? session.avatarUrl ?? null }, 56)}
+                  isAdmin={!!session.isAdmin}
+                />
               ) : (
-                <Link href="/login" className="brutal-btn-pink text-xs">
-                  Sign in
-                </Link>
+                <>
+                  <HowItWorksButton className="hidden md:inline-flex border-[2px] border-current px-2 py-1 text-xs font-bold uppercase tracking-wide hover:bg-cga-cyan hover:text-cga-black" label="How it works" />
+                  <Link href="/login" className="brutal-btn-pink text-xs">
+                    Sign in
+                  </Link>
+                </>
               )}
             </div>
           </div>

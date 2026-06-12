@@ -144,7 +144,7 @@ export default async function PolymarketPage() {
       </section>
 
       <p className="text-center text-xs opacity-100">
-        Live odds and chart sourced from Polymarket's public API · cached for 60s · Get Fooked is a tipping game, not a brokerage.
+        Live odds and chart sourced from Polymarket's public API · cached server-side · Get Fooked is a tipping game, not a brokerage.
       </p>
     </div>
   );

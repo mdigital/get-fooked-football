@@ -154,7 +154,8 @@ export default async function MyTeamsPage() {
         <p className="text-sm mt-2 opacity-100">
           Cast a curse on any team. Every fixture where a cursed team <strong>loses</strong> earns you +3 on the{' '}
           <Link className="brutal-link" href="/leaderboards?board=schadenfreude">Schadenfreude board</Link>. Doesn&rsquo;t
-          affect the main league. Self-curses welcome.
+          affect the main league. Self-curses welcome. <strong>Pick a side though</strong> — curse both teams in the
+          same match and they cancel out (no points for that game).
         </p>
         <div className="mt-4 grid gap-2 md:grid-cols-2">
           {teams.map((t) => {

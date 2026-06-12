@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { db, schema } from '@/db/client';
 import { sql } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
@@ -10,6 +11,7 @@ import { MAX_BURN_LEN } from '@/lib/burns';
 import { postBurnAction } from './_burn-actions';
 import PolymarketWidget from './_polymarket-widget';
 import LeaderboardWidget from './_leaderboard-widget';
+import NewsWidget from './_news-widget';
 import { ChatBadge } from './_chat-badge';
 import { ActivityFeed } from './_activity-feed';
 
@@ -163,6 +165,11 @@ export default async function HomePage() {
         <LeaderboardWidget initialBoard="overall" initialRows={top} />
         <PolymarketWidget />
       </section>
+
+      {/* World Cup news — streamed so a slow feed never blocks the page. */}
+      <Suspense fallback={null}>
+        <NewsWidget />
+      </Suspense>
 
       {/* Latest cunting — recent activity feed. */}
       <section className="brutal-card">

@@ -5,6 +5,8 @@
  * Cached briefly on the server so the page can be rendered without thrashing their API.
  */
 
+import { makeCachedResource } from './cached-fetch';
+
 const GAMMA_BASE = 'https://gamma-api.polymarket.com';
 const CLOB_BASE = 'https://clob.polymarket.com';
 
@@ -44,15 +46,33 @@ export type PriceSeries = {
   p: number[];
 };
 
-const CACHE_TTL_MS = 60_000;
-let cache: { fetchedAt: number; event: PolyEvent } | null = null;
-let seriesCache: { fetchedAt: number; series: PriceSeries[] } | null = null;
+// Odds drift slowly and this is a tipping game, not a trading desk — cache hard
+// so we make at most a handful of upstream calls an hour no matter how many
+// people are browsing. The shared cache also serves stale data on error and
+// backs off, so a Polymarket hiccup or rate-limit doesn't blank the UI or get
+// us blocked. Override via env for tuning without a redeploy.
+const EVENT_TTL_MS = Number(process.env.POLYMARKET_TTL_MS) || 5 * 60_000;
+const SERIES_TTL_MS = Number(process.env.POLYMARKET_SERIES_TTL_MS) || 30 * 60_000;
+const ERROR_BACKOFF_MS = Number(process.env.POLYMARKET_BACKOFF_MS) || 5 * 60_000;
+
+// A descriptive UA + Accept. Default server-side fetch sends no User-Agent,
+// which some edges/WAFs treat as a bot and 403/429. Identifying ourselves is
+// the single most common fix for "works in the browser, blocked from the server".
+const REQUEST_HEADERS: Record<string, string> = {
+  Accept: 'application/json',
+  'User-Agent':
+    process.env.POLYMARKET_USER_AGENT ||
+    'GetFooked/1.0 (+https://github.com/mdigital/get-fooked-football)',
+};
 
 async function getJson<T>(url: string): Promise<T> {
+  // We do our own caching/backoff in makeCachedResource, so opt the fetch itself
+  // out of Next's Data Cache — one source of truth, no surprise double-caching.
+  // Time-box it so a hung upstream can't stall a server-rendered page.
   const res = await fetch(url, {
-    // Next.js: cache server-side for 60 seconds.
-    next: { revalidate: 60 },
-    headers: { Accept: 'application/json' },
+    cache: 'no-store',
+    headers: REQUEST_HEADERS,
+    signal: AbortSignal.timeout(8000),
   });
   if (!res.ok) {
     throw new Error(`Polymarket ${res.status} ${res.statusText} fetching ${url}`);
@@ -94,11 +114,11 @@ type RawEvent = {
   markets?: RawMarket[];
 };
 
-export async function fetchEvent(force = false): Promise<PolyEvent> {
-  if (!force && cache && Date.now() - cache.fetchedAt < CACHE_TTL_MS) {
-    return cache.event;
-  }
-  const events = await getJson<RawEvent[]>(`${GAMMA_BASE}/events?slug=${encodeURIComponent(EVENT_SLUG)}`);
+/**
+ * Pure: shape a raw Gamma `events` payload into our PolyEvent. Exported so the
+ * fiddly price/token-array parsing is unit-testable without the network.
+ */
+export function parsePolyEvent(events: RawEvent[]): PolyEvent {
   if (!events?.length) {
     throw new Error(`No Polymarket event found for slug "${EVENT_SLUG}". Set POLYMARKET_EVENT_SLUG to the correct one.`);
   }
@@ -122,39 +142,60 @@ export async function fetchEvent(force = false): Promise<PolyEvent> {
     })
     .sort((a, b) => b.yesPrice - a.yesPrice);
 
-  const event: PolyEvent = {
+  return {
     title: raw.title,
     slug: raw.slug,
     totalVolume: Number(raw.volumeNum ?? raw.volume ?? 0),
     endDate: raw.endDate ?? null,
     outcomes,
   };
-  cache = { fetchedAt: Date.now(), event };
-  return event;
 }
 
-export async function fetchPriceHistory(outcomes: PolyOutcome[], topN = 4): Promise<PriceSeries[]> {
-  if (seriesCache && Date.now() - seriesCache.fetchedAt < CACHE_TTL_MS) {
-    return seriesCache.series;
-  }
-  const top = outcomes.slice(0, topN);
-  const results = await Promise.all(
-    top.map(async (o) => {
-      if (!o.yesTokenId) return { outcomeName: o.name, t: [], p: [] } as PriceSeries;
-      try {
-        const r = await getJson<{ history: { t: number; p: number }[] }>(
-          `${CLOB_BASE}/prices-history?market=${o.yesTokenId}&interval=max&fidelity=720`,
-        );
-        return {
-          outcomeName: o.name,
-          t: r.history.map((h) => h.t * 1000),
-          p: r.history.map((h) => h.p),
-        };
-      } catch {
-        return { outcomeName: o.name, t: [], p: [] };
-      }
-    }),
-  );
-  seriesCache = { fetchedAt: Date.now(), series: results };
-  return results;
+const eventResource = makeCachedResource<PolyEvent>({
+  ttlMs: EVENT_TTL_MS,
+  errorBackoffMs: ERROR_BACKOFF_MS,
+  fetcher: async () => {
+    const events = await getJson<RawEvent[]>(`${GAMMA_BASE}/events?slug=${encodeURIComponent(EVENT_SLUG)}`);
+    return parsePolyEvent(events);
+  },
+});
+
+/** Cached World Cup winner market. `force` bypasses the cache (used by the admin price sync). */
+export function fetchEvent(force = false): Promise<PolyEvent> {
+  return eventResource(force);
+}
+
+const seriesResource = makeCachedResource<PriceSeries[]>({
+  ttlMs: SERIES_TTL_MS,
+  errorBackoffMs: ERROR_BACKOFF_MS,
+  fetcher: async () => {
+    const event = await eventResource();
+    const top = event.outcomes.slice(0, 4);
+    return Promise.all(
+      top.map(async (o) => {
+        if (!o.yesTokenId) return { outcomeName: o.name, t: [], p: [] } as PriceSeries;
+        try {
+          const r = await getJson<{ history: { t: number; p: number }[] }>(
+            `${CLOB_BASE}/prices-history?market=${o.yesTokenId}&interval=max&fidelity=720`,
+          );
+          return {
+            outcomeName: o.name,
+            t: r.history.map((h) => h.t * 1000),
+            p: r.history.map((h) => h.p),
+          };
+        } catch {
+          return { outcomeName: o.name, t: [], p: [] };
+        }
+      }),
+    );
+  },
+});
+
+/**
+ * Cached price history for the top 4 outcomes. The `outcomes` arg is accepted
+ * for backwards-compatibility but the cached resource derives them from the
+ * event itself, so callers can pass `event.outcomes` or nothing.
+ */
+export function fetchPriceHistory(_outcomes?: PolyOutcome[], _topN = 4): Promise<PriceSeries[]> {
+  return seriesResource();
 }
