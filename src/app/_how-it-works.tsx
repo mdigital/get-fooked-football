@@ -12,9 +12,12 @@ import { createPortal } from 'react-dom';
 export function HowItWorksButton({
   className = 'brutal-btn-ghost text-xs',
   label = 'How it works',
+  onClick,
 }: {
   className?: string;
   label?: string;
+  /** Fired in addition to opening the modal — handy for closing a parent menu. */
+  onClick?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   // Track when we're hydrated so the portal target (document.body) is safe to
@@ -121,7 +124,14 @@ export function HowItWorksButton({
 
   return (
     <>
-      <button type="button" className={className} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className={className}
+        onClick={() => {
+          setOpen(true);
+          onClick?.();
+        }}
+      >
         {label}
       </button>
       {overlay}

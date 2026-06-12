@@ -20,6 +20,36 @@ describe('computeSchadenfreude', () => {
     expect(out.get(12)).toBeUndefined();
   });
 
+  it('cancels out when a user cursed BOTH teams in the match', () => {
+    const fixtures = [
+      makeFixture({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 0, awayScore: 2, status: 'FINISHED' }),
+    ];
+    const curses = [
+      { userId: 10, teamId: 1 }, // cursed only the loser -> +3
+      { userId: 20, teamId: 1 }, // cursed the loser...
+      { userId: 20, teamId: 2 }, // ...and the winner -> hedged, cancels to 0
+    ];
+    const out = computeSchadenfreude(fixtures, curses);
+    expect(out.get(10)).toBe(SCHADENFREUDE_PER_LOSS);
+    expect(out.get(20)).toBeUndefined();
+  });
+
+  it('still rewards other matches where the double-curser backed only one side', () => {
+    const fixtures = [
+      // Match A: user 20 cursed both teams -> cancels.
+      makeFixture({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 0, awayScore: 1, status: 'FINISHED' }),
+      // Match B: user 20 cursed only team 3, which loses -> +3.
+      makeFixture({ id: 2, stage: 'GROUP', homeTeamId: 3, awayTeamId: 4, homeScore: 0, awayScore: 2, status: 'FINISHED' }),
+    ];
+    const curses = [
+      { userId: 20, teamId: 1 },
+      { userId: 20, teamId: 2 },
+      { userId: 20, teamId: 3 },
+    ];
+    const out = computeSchadenfreude(fixtures, curses);
+    expect(out.get(20)).toBe(SCHADENFREUDE_PER_LOSS);
+  });
+
   it('does not award on a draw', () => {
     const fixtures = [
       makeFixture({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 1, awayScore: 1, status: 'FINISHED' }),
