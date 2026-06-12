@@ -1,0 +1,50 @@
+name: clanker — hourly results sync
+
+# Pings the deployed app's protected cron endpoint so the clanker pulls finished
+# scores from TheSportsDB every hour. The actual work runs in the app (with its
+# DATABASE_URL); this workflow is just the scheduler.
+#
+# Required repository secrets:
+#   APP_URL      e.g. https://get-fooked.up.railway.app  (no trailing slash)
+#   CRON_SECRET  must match the CRON_SECRET env var set on the Railway service
+#
+# Note: GitHub only runs scheduled workflows from the default branch, and the
+# schedule can lag a few minutes under load. Use "Run workflow" for an on-demand
+# sync.
+on:
+  schedule:
+    - cron: '0 * * * *' # top of every hour (UTC)
+  workflow_dispatch: {}
+
+# Don't pile up runs if one is slow/queued.
+concurrency:
+  group: clanker-results-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Trigger results sync
+        env:
+          APP_URL: ${{ secrets.APP_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${APP_URL:-}" ] || [ -z "${CRON_SECRET:-}" ]; then
+            echo "::error::Set the APP_URL and CRON_SECRET repository secrets first."
+            exit 1
+          fi
+          code=$(curl -fsS --retry 3 --retry-delay 5 --max-time 120 \
+            -o /tmp/clanker.json -w '%{http_code}' \
+            -X POST "${APP_URL%/}/api/cron/results-sync" \
+            -H "Authorization: Bearer ${CRON_SECRET}" \
+            -H 'content-type: application/json') || true
+          echo "HTTP ${code:-000}"
+          cat /tmp/clanker.json 2>/dev/null || true
+          echo
+          case "${code:-000}" in
+            2*) echo "clanker sync ok" ;;
+            *) echo "::error::clanker sync failed (HTTP ${code:-000})"; exit 1 ;;
+          esac
