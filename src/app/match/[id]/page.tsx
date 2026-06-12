@@ -10,6 +10,7 @@ import { pointsForFixture } from '@/lib/scoring';
 import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import { avatarFor } from '@/lib/avatar';
 import { displayName } from '@/lib/display-name';
+import { bubbleTransform } from '@/lib/curses';
 import {
   aggregateReactions,
   clampEmoji,
@@ -171,6 +172,60 @@ export default async function MatchPage({
   const teamById = new Map(teams.map((t) => [t.id, t] as const));
   const home = fixture.homeTeamId ? teamById.get(fixture.homeTeamId) : undefined;
   const away = fixture.awayTeamId ? teamById.get(fixture.awayTeamId) : undefined;
+  const matchTeamIds = [fixture.homeTeamId, fixture.awayTeamId].filter(
+    (x): x is number => x != null,
+  );
+
+  // Who drew each of these two teams (their "owner"), so we can show whose team
+  // is whose right under the scoreboard.
+  const ownerRows = matchTeamIds.length
+    ? await db
+        .select({
+          teamId: schema.teamAssignments.teamId,
+          isLeftover: schema.teamAssignments.isLeftover,
+          userId: schema.teamAssignments.userId,
+          userName: schema.users.name,
+          userNickname: schema.users.nickname,
+        })
+        .from(schema.teamAssignments)
+        .leftJoin(schema.users, eq(schema.users.id, schema.teamAssignments.userId))
+        .where(inArray(schema.teamAssignments.teamId, matchTeamIds))
+    : [];
+  const ownerByTeam = new Map(ownerRows.map((o) => [o.teamId, o] as const));
+  function ownerOf(teamId: number | null | undefined) {
+    if (teamId == null) return null;
+    const o = ownerByTeam.get(teamId);
+    if (!o) return null;
+    if (o.isLeftover || o.userId == null || o.userName == null) {
+      return { leftover: true as const, userId: null, name: null };
+    }
+    return {
+      leftover: false as const,
+      userId: o.userId,
+      name: displayName({ name: o.userName, nickname: o.userNickname }),
+    };
+  }
+  const homeOwner = ownerOf(fixture.homeTeamId);
+  const awayOwner = ownerOf(fixture.awayTeamId);
+
+  // Every curse cast on either team in this fixture — rendered as speech bubbles.
+  const matchCurses = matchTeamIds.length
+    ? await db
+        .select({
+          userId: schema.teamCurses.userId,
+          teamId: schema.teamCurses.teamId,
+          curseText: schema.teamCurses.curseText,
+          createdAt: schema.teamCurses.createdAt,
+          userName: schema.users.name,
+          userNickname: schema.users.nickname,
+          userEmail: schema.users.email,
+          userAvatar: schema.users.avatarUrl,
+        })
+        .from(schema.teamCurses)
+        .leftJoin(schema.users, eq(schema.users.id, schema.teamCurses.userId))
+        .where(inArray(schema.teamCurses.teamId, matchTeamIds))
+        .orderBy(asc(schema.teamCurses.createdAt))
+    : [];
 
   // Comments + their authors. Soft-deleted comments are filtered out at the
   // query level — we never want to render the body of a removed message.
@@ -242,6 +297,18 @@ export default async function MatchPage({
           <div className="text-right text-2xl font-black">
             <div className="text-4xl">{home?.flag ?? '🏳️'}</div>
             <div>{home?.name ?? fixture.homeLabel ?? 'TBD'}</div>
+            {homeOwner && (
+              <div className="mt-1 text-xs font-bold uppercase tracking-wide opacity-100">
+                {homeOwner.leftover ? (
+                  'Leftover pool'
+                ) : (
+                  <>
+                    {'owned by '}
+                    <UserLink userId={homeOwner.userId} name={homeOwner.name} className="brutal-link" />
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <div className="text-center text-5xl font-black tabular-nums">
             {fixture.status === 'FINISHED' ? `${fixture.homeScore}–${fixture.awayScore}` : 'vs'}
@@ -254,6 +321,18 @@ export default async function MatchPage({
           <div className="text-2xl font-black">
             <div className="text-4xl">{away?.flag ?? '🏳️'}</div>
             <div>{away?.name ?? fixture.awayLabel ?? 'TBD'}</div>
+            {awayOwner && (
+              <div className="mt-1 text-xs font-bold uppercase tracking-wide opacity-100">
+                {awayOwner.leftover ? (
+                  'Leftover pool'
+                ) : (
+                  <>
+                    {'owned by '}
+                    <UserLink userId={awayOwner.userId} name={awayOwner.name} className="brutal-link" />
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -264,6 +343,50 @@ export default async function MatchPage({
           </div>
         )}
       </div>
+
+      {/* Curses ------------------------------------------------------------ */}
+      {matchCurses.length > 0 && (
+        <div className="brutal-card overflow-hidden">
+          <h2 className="brutal-h2">Curses on this match</h2>
+          <p className="mt-1 text-sm opacity-100">
+            Hexes flung at {home?.name ?? 'the home side'} or {away?.name ?? 'the away side'}. A
+            cursed team losing pays out on the{' '}
+            <Link className="brutal-link" href="/leaderboards?board=schadenfreude">Schadenfreude board</Link>.
+          </p>
+          <div className="mt-6 flex flex-wrap gap-x-8 gap-y-10">
+            {matchCurses.map((c) => {
+              const { angleDeg, scale } = bubbleTransform(c.userId, c.teamId);
+              const curser = c.userName
+                ? displayName({ name: c.userName, nickname: c.userNickname })
+                : 'someone';
+              const team = teamById.get(c.teamId);
+              return (
+                <div
+                  key={`${c.userId}-${c.teamId}`}
+                  className="flex items-center gap-3"
+                  style={{ transform: `rotate(${angleDeg}deg) scale(${scale})` }}
+                >
+                  <Link href={`/profile/${c.userId}`} aria-label={`${curser}'s profile`}>
+                    <Avatar
+                      src={avatarFor({ email: c.userEmail ?? '', avatarUrl: c.userAvatar ?? null }, 64)}
+                      name={curser}
+                      size={40}
+                    />
+                  </Link>
+                  <div className="curse-bubble max-w-[15rem] border-[3px] border-current bg-white p-3 dark:bg-cga-black">
+                    <div className="text-[10px] font-bold uppercase tracking-wide opacity-100">
+                      {curser} hexed {team?.flag} {team?.name ?? 'this team'}
+                    </div>
+                    <div className="mt-1 break-words text-sm">
+                      {c.curseText ? `“${c.curseText}”` : '🔮 cast a wordless hex'}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Chat -------------------------------------------------------------- */}
       <div id="chat" className="brutal-card">

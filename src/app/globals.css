@@ -150,6 +150,22 @@ footer {
     @apply border-cga-black;
   }
 
+  /* Speech-bubble tail for match-page curses — a bold triangle off the left
+     edge, pointing back at the curser's avatar. Inherits the bubble's border
+     colour via currentColor so it flips correctly in dark mode. */
+  .curse-bubble {
+    position: relative;
+  }
+  .curse-bubble::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 18px;
+    border-width: 8px 14px 8px 0;
+    border-style: solid;
+    border-color: transparent currentColor transparent transparent;
+  }
+
   /* Reverse-out headings: black ink on a cyan or magenta block. */
   .brutal-heading-cyan {
     @apply inline-block border-[3px] border-cga-black bg-cga-cyan text-cga-black px-3 py-1 shadow-cga;
