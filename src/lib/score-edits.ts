@@ -62,7 +62,10 @@ export function validateScoreEdit(input: ScoreInput): void {
 
 export async function submitScoreEdit(opts: {
   fixtureId: number;
-  userId: number;
+  /** Human editor's user id. Omit (with editorName) for an automated agent. */
+  userId?: number | null;
+  /** Non-human editor label, e.g. "clanker". Mutually exclusive with userId. */
+  editorName?: string | null;
   stage: string;
   status: string;
   homeScore?: number | null;
@@ -74,6 +77,9 @@ export async function submitScoreEdit(opts: {
   note?: string | null;
 }) {
   validateScoreEdit(opts);
+  if (opts.userId == null && !opts.editorName) {
+    throw new Error('submitScoreEdit needs either a userId or an editorName');
+  }
   await db.transaction(async (tx) => {
     await tx
       .update(schema.fixtures)
@@ -89,7 +95,8 @@ export async function submitScoreEdit(opts: {
       .where(eq(schema.fixtures.id, opts.fixtureId));
     await tx.insert(schema.scoreEdits).values({
       fixtureId: opts.fixtureId,
-      userId: opts.userId,
+      userId: opts.userId ?? null,
+      editorName: opts.userId == null ? opts.editorName ?? null : null,
       homeScore: opts.homeScore ?? null,
       awayScore: opts.awayScore ?? null,
       homePens: opts.homePens ?? null,
@@ -102,9 +109,9 @@ export async function submitScoreEdit(opts: {
 
 export async function getEditHistory(fixtureId: number) {
   const result = await db.execute(sql`
-    select e.id, e.user_id, u.name as user_name, e.home_score, e.away_score,
+    select e.id, e.user_id, coalesce(u.name, e.editor_name) as user_name, e.home_score, e.away_score,
            e.home_pens, e.away_pens, e.status, e.note, e.created_at
-    from score_edits e join users u on u.id = e.user_id
+    from score_edits e left join users u on u.id = e.user_id
     where e.fixture_id = ${fixtureId}
     order by e.created_at desc
   `);

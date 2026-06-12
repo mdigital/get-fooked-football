@@ -178,7 +178,11 @@ export const scoreEdits = pgTable(
   {
     id: serial('id').primaryKey(),
     fixtureId: integer('fixture_id').notNull().references(() => fixtures.id, { onDelete: 'cascade' }),
-    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    // Null when an automated agent made the edit (see editorName). A non-null
+    // userId means a human touched it — those fixtures are never auto-overwritten.
+    userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    // Display name for a non-human editor, e.g. "clanker". Null for human edits.
+    editorName: text('editor_name'),
     homeScore: integer('home_score'),
     awayScore: integer('away_score'),
     homePens: integer('home_pens'),
@@ -229,8 +233,10 @@ export const auditEvents = pgTable(
   'audit_events',
   {
     id: serial('id').primaryKey(),
-    /** Who did the thing. */
-    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    /** Who did the thing. Null for an automated agent (see actorName). */
+    userId: integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+    /** Display name for a non-human actor, e.g. "clanker". Null for human events. */
+    actorName: text('actor_name'),
     /** When the action affected another user (avatar / nickname hijack). */
     targetUserId: integer('target_user_id').references(() => users.id, { onDelete: 'set null' }),
     /** Dotted event kind, e.g. "avatar.set", "nickname.clear", "curse.lift", "draw.run". */

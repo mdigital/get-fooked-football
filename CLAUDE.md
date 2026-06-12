@@ -56,7 +56,11 @@ src/
     leaderboards.ts        — computeLeaderboard (pure) + buildLeaderboard (DB)
     bracket.ts             — group standings (FIFA tiebreakers) + KO slot fill planner (pure);
                              admin "Bracket" panel applies the plan
-    score-edits.ts         — validateScoreEdit (pure) + submitScoreEdit (DB + audit log)
+    score-edits.ts         — validateScoreEdit (pure) + submitScoreEdit (DB + audit log).
+                             Edits are attributed to a human (userId) OR an agent (editorName, e.g. "clanker").
+    results-sync.ts        — planResultSync (pure): match online results to fixtures, skip human-edited ones
+    results-sync-db.ts     — runResultsSync (DB): fetch → plan → apply as "clanker" edits + audit
+    thesportsdb.ts         — keyless TheSportsDB results feed + parser (env: THESPORTSDB_LEAGUE_ID/SEASON/KEY)
     inswap.ts              — InSwap standings + sort (pure)
     uploads.ts             — local image saver
     polymarket.ts          — Gamma API fetcher + 60s cache

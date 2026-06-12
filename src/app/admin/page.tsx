@@ -12,6 +12,7 @@ import { getCurrentGroupInvite, rollGroupInvite } from '@/lib/group-invite-db';
 import { formatTimeRemaining, validateInvite } from '@/lib/group-invite';
 import { logAudit } from '@/lib/audit';
 import { planBracketUpdate } from '@/lib/bracket';
+import { runResultsSync } from '@/lib/results-sync-db';
 import { OnboardingTab } from './_onboarding-tab';
 import { AuditTab } from './_audit-tab';
 
@@ -90,6 +91,22 @@ async function loadBracketInputs() {
     db.select().from(schema.fixtures),
   ]);
   return { teams, fixtures };
+}
+
+async function doResultsSync() {
+  'use server';
+  await requireAdmin();
+  // Clanker attributes its own edits; no admin userId is recorded.
+  let r: Awaited<ReturnType<typeof runResultsSync>>;
+  try {
+    r = await runResultsSync();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'sync failed';
+    redirect(`/admin?tab=results&err=${encodeURIComponent(msg)}`);
+  }
+  redirect(
+    `/admin?tab=results&synced=${r.updated}&needsPens=${r.skipped['needs-pens']}&protectedCount=${r.skipped['human-edited']}`,
+  );
 }
 
 async function applyBracketFills() {
@@ -202,10 +219,10 @@ const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; err?: string; synced?: string; needsPens?: string; protectedCount?: string }>;
 }) {
   await requireAdmin();
-  const { tab: rawTab } = await searchParams;
+  const { tab: rawTab, err, synced, needsPens, protectedCount } = await searchParams;
   const tab: TabId = (rawTab && TAB_IDS.has(rawTab) ? rawTab : 'players') as TabId;
 
   const [users, groupInvite, teams, fixtures, prizes, assignments] = await Promise.all([
@@ -396,7 +413,22 @@ export default async function AdminPage({
       {/* Results ---------------------------------------------------------- */}
       {tab === 'results' && (
       <section className="brutal-card">
-        <h2 className="mb-3 text-lg font-semibold">Results</h2>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-lg font-semibold">Results</h2>
+          <form action={doResultsSync}>
+            <button className="brutal-btn-cyan text-xs" type="submit" title="Auto-update finished games from TheSportsDB. Skips anything a human has edited.">
+              🤖 Sync results (clanker)
+            </button>
+          </form>
+        </div>
+        {err && <p className="brutal-error mb-3">{err}</p>}
+        {synced != null && (
+          <p className="brutal-card-inner mb-3 text-sm">
+            <strong>clanker</strong> updated <strong>{synced}</strong> fixture{synced === '1' ? '' : 's'}.
+            {Number(needsPens) > 0 && <> {needsPens} drawn KO game{needsPens === '1' ? '' : 's'} need penalties — enter those by hand.</>}
+            {Number(protectedCount) > 0 && <> {protectedCount} left untouched (human-edited).</>}
+          </p>
+        )}
         <p className="mb-3 text-sm opacity-100">Enter scores as matches finish. For KO ties, fill in penalty scores too.</p>
         {(bracketPlan.fills.length > 0 || bracketPlan.choices.length > 0) && (
           <div className="brutal-card-inner mb-4">

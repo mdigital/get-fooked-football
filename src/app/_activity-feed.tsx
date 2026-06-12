@@ -55,6 +55,9 @@ export async function ActivityFeed({ limit = 60 }: { limit?: number }) {
       </Link>
     );
   };
+  // Human actor link, or a plain bold label for an automated agent ("clanker").
+  const fmtActor = (id: number | null | undefined, fallbackName: string | null | undefined) =>
+    fmtUser(id) ?? (fallbackName ? <span className="font-bold">{fallbackName}</span> : null);
   const fmtTeam = (id: number | null | undefined) => {
     if (id == null) return null;
     const t = teamById.get(id);
@@ -85,7 +88,7 @@ export async function ActivityFeed({ limit = 60 }: { limit?: number }) {
       kind: e.kind,
       detail: (
         <span>
-          {fmtUser(e.userId)} <span className="opacity-100">{labelFor(e.kind)}</span>{' '}
+          {fmtActor(e.userId, e.actorName)} <span className="opacity-100">{labelFor(e.kind)}</span>{' '}
           {e.targetUserId != null && fmtUser(e.targetUserId)}
           {e.detail && <span className="text-xs opacity-100 ml-1">[{truncate(e.detail, 60)}]</span>}
         </span>
@@ -99,7 +102,7 @@ export async function ActivityFeed({ limit = 60 }: { limit?: number }) {
       kind: 'score.edit',
       detail: (
         <span>
-          {fmtUser(r.userId)} <span className="opacity-100">edited score on</span> {fmtFixture(r.fixtureId)}{' '}
+          {fmtActor(r.userId, r.editorName)} <span className="opacity-100">edited score on</span> {fmtFixture(r.fixtureId)}{' '}
           <strong>
             {r.homeScore ?? '—'}–{r.awayScore ?? '—'}
           </strong>
@@ -211,6 +214,10 @@ function labelFor(kind: string): string {
       return 'lifted a curse';
     case 'draw.run':
       return 'ran the draw';
+    case 'results.sync':
+      return 'auto-updated results';
+    case 'bracket.autofill':
+      return 'auto-filled bracket slots';
     case 'prize.award':
       return 'awarded a prize to';
     case 'prize.unaward':
