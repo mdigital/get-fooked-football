@@ -8,6 +8,7 @@ import { avatarFor, gravatarUrl } from '@/lib/avatar';
 import { clearAvatarAction, setNicknameAction, uploadAvatarAction } from '../_actions';
 import { displayName, nicknameOnly } from '@/lib/display-name';
 import { WallOfShame, type JabRow } from '../_wall-of-shame';
+import { UserTeams } from '../_user-teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +89,8 @@ export default async function HijackProfilePage({
         {err === 'nofile' && <p className="brutal-error mt-3">Pick a file first.</p>}
         {err && err !== 'nofile' && <p className="brutal-error mt-3">Upload failed: {decodeURIComponent(err)}</p>}
       </div>
+
+      <UserTeams userId={target.id} label={isSelf ? 'Your' : `${target.name}'s`} />
 
       <div className="brutal-card">
         <h2 className="brutal-h2">{isSelf ? 'Current photo' : `${target.name}'s current photo`}</h2>

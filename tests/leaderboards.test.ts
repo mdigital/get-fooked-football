@@ -122,3 +122,32 @@ describe('computeLeaderboard', () => {
     expect(board.every((r) => r.displayValue === '—')).toBe(true);
   });
 });
+
+describe('computeLeaderboard — Petrostate Cup (oil)', () => {
+  const users = [makeUser({ id: 1, name: 'Robin' }), makeUser({ id: 2, name: 'Sam' })];
+  // Robin owns the USA (huge oil); Sam owns NZ (a trickle). A filler opponent
+  // sits leftover so fixtures resolve.
+  const teams = [
+    makeTeam({ id: 1, name: 'United States', code: 'USA' }), // 4.7e9 bbl/yr
+    makeTeam({ id: 2, name: 'New Zealand', code: 'NZL' }), //    7e6 bbl/yr
+    makeTeam({ id: 9, name: 'Filler', code: 'ZZZ' }), //         0 bbl/yr
+  ];
+  const assignments = [
+    { teamId: 1, userId: 1, isLeftover: false },
+    { teamId: 2, userId: 2, isLeftover: false },
+    { teamId: 9, userId: null, isLeftover: true },
+  ];
+  // USA score 3, NZ score 2 (goals are what count here, not match points).
+  const fixtures = [finishedGroup(1, 3, 0, 1, 9), finishedGroup(2, 2, 0, 2, 9)];
+
+  it('weights goals by annual oil production and shows goals as raw points', () => {
+    const board = computeLeaderboard('oil', users, teams, assignments, fixtures);
+    const robin = board.find((r) => r.name === 'Robin')!;
+    const sam = board.find((r) => r.name === 'Sam')!;
+    expect(robin.points).toBe(3); // goals, not match points
+    expect(sam.points).toBe(2);
+    expect(robin.weightedPoints).toBe(3 * (4_700_000_000 / 1_000_000)); // 14100
+    expect(sam.weightedPoints).toBe(2 * (7_000_000 / 1_000_000)); // 14
+    expect(board[0].name).toBe('Robin');
+  });
+});

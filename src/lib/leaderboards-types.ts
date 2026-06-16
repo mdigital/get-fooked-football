@@ -7,6 +7,7 @@ export type BoardKey =
   | 'population'
   | 'sheep'
   | 'fifa_underdog'
+  | 'oil'
   | 'group_only'
   | 'ko_only'
   | 'schadenfreude'
@@ -44,6 +45,12 @@ export const BOARD_META: Record<BoardKey, { label: string; tagline: string; unit
     label: 'Underdog Cup',
     tagline: 'Points × average FIFA rank of your teams. The worse your draw, the bigger the multiplier.',
     unit: 'pts·rank',
+  },
+  oil: {
+    label: 'Petrostate Cup',
+    tagline:
+      "Goals scored × your nations' annual oil production (millions of barrels). The \"Raw pts\" column is goals. Drill, baby, drill.",
+    unit: 'goal·Mbbl',
   },
   group_only: { label: 'Group Stage Only', tagline: 'Points from group-stage matches only.', unit: 'pts' },
   ko_only: { label: 'Knockout Only', tagline: 'Points from R32 onwards.', unit: 'pts' },

@@ -7,6 +7,7 @@ import { avatarFor, gravatarUrl } from '@/lib/avatar';
 import { displayName, nicknameOnly } from '@/lib/display-name';
 import { clearAvatarAction, setNicknameAction, uploadAvatarAction } from './_actions';
 import { WallOfShame, type JabRow } from './_wall-of-shame';
+import { UserTeams } from './_user-teams';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,8 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
         {err === 'nofile' && <p className="brutal-error mt-3">Pick a file first.</p>}
         {err && err !== 'nofile' && <p className="brutal-error mt-3">Upload failed: {decodeURIComponent(err)}</p>}
       </div>
+
+      <UserTeams userId={me.id} label="Your" />
 
       <div className="brutal-card">
         <h2 className="brutal-h2">Current photo</h2>

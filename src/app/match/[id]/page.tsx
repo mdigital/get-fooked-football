@@ -11,6 +11,7 @@ import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import { avatarFor } from '@/lib/avatar';
 import { displayName } from '@/lib/display-name';
 import { bubbleTransform } from '@/lib/curses';
+import { castCurseAction, liftCurseAction } from '../../teams/_curse-actions';
 import {
   aggregateReactions,
   clampEmoji,
@@ -384,6 +385,59 @@ export default async function MatchPage({
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Cast a curse ------------------------------------------------------ */}
+      {session.userId && (home || away) && (
+        <div id="curses" className="brutal-card">
+          <h2 className="brutal-h2">Curse a team</h2>
+          <p className="mt-1 text-sm opacity-100">
+            +3 on the{' '}
+            <Link className="brutal-link" href="/leaderboards?board=schadenfreude">Schadenfreude board</Link>{' '}
+            every time a team you&rsquo;ve cursed loses. <strong>Pick a side</strong> — curse both teams in
+            this match and they cancel out.
+          </p>
+          <div className="mt-3 grid gap-3 md:grid-cols-2">
+            {[home, away]
+              .filter((t): t is NonNullable<typeof t> => !!t)
+              .map((team) => {
+                const mine = matchCurses.find(
+                  (c) => c.userId === session.userId && c.teamId === team.id,
+                );
+                return (
+                  <div key={team.id} className="border-[3px] border-current p-3">
+                    <div className="font-bold">
+                      {team.flag} {team.name}
+                    </div>
+                    <form action={castCurseAction} className="mt-2 flex flex-wrap items-center gap-2">
+                      <input type="hidden" name="team_id" value={team.id} />
+                      <input type="hidden" name="redirect_to" value={`/match/${id}#curses`} />
+                      <input
+                        type="text"
+                        name="curse_text"
+                        defaultValue={mine?.curseText ?? ''}
+                        maxLength={140}
+                        placeholder={mine ? 'Update your curse…' : 'optional curse text'}
+                        className="brutal-input min-w-[10rem] flex-1 text-sm"
+                      />
+                      <button type="submit" className={mine ? 'brutal-btn-ghost text-xs' : 'brutal-btn-pink text-xs'}>
+                        {mine ? 'Update' : 'Cast curse'}
+                      </button>
+                    </form>
+                    {mine && (
+                      <form action={liftCurseAction} className="mt-2">
+                        <input type="hidden" name="team_id" value={team.id} />
+                        <input type="hidden" name="redirect_to" value={`/match/${id}#curses`} />
+                        <button type="submit" className="brutal-btn-ghost text-xs">
+                          Lift curse
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                );
+              })}
           </div>
         </div>
       )}

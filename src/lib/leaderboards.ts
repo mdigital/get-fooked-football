@@ -5,6 +5,7 @@ import { avatarFor } from './avatar';
 import { displayName } from './display-name';
 import { computeSchadenfreude, type CurseInput } from './schadenfreude';
 import { formatSurvivedMs, rankPersonalBests, type FlappyScoreRow } from './flappy';
+import { oilBarrelsForCode } from './oil';
 import type { Fixture, Team, User } from '@/db/schema';
 
 export { BOARD_META } from './leaderboards-types';
@@ -19,7 +20,7 @@ export type AssignmentInput = { teamId: number; userId: number | null; isLeftove
 export function computeLeaderboard(
   kind: BoardKey,
   users: Pick<User, 'id' | 'name' | 'nickname' | 'email' | 'avatarUrl'>[],
-  teams: Pick<Team, 'id' | 'population' | 'sheep' | 'fifaRank'>[],
+  teams: Pick<Team, 'id' | 'code' | 'population' | 'sheep' | 'fifaRank'>[],
   assignments: AssignmentInput[],
   fixtures: Fixture[],
   curses: ReadonlyArray<CurseInput> = [],
@@ -101,14 +102,21 @@ export function computeLeaderboard(
     const row = rows.get(a.userId);
     if (!row) continue;
     const ts = teamScores.get(a.teamId);
-    row.points += ts?.points ?? 0;
     row.teamCount += 1;
-    if (kind === 'population') row.weight += team.population;
-    else if (kind === 'sheep') row.weight += team.sheep;
-    else if (kind === 'fifa_underdog') row.weight += team.fifaRank;
+    if (kind === 'oil') {
+      // Petrostate Cup runs on goals scored, not match points.
+      row.points += ts?.gf ?? 0;
+      row.weight += oilBarrelsForCode(team.code);
+    } else {
+      row.points += ts?.points ?? 0;
+      if (kind === 'population') row.weight += team.population;
+      else if (kind === 'sheep') row.weight += team.sheep;
+      else if (kind === 'fifa_underdog') row.weight += team.fifaRank;
+    }
   }
   for (const r of rows.values()) {
-    if (kind === 'population' || kind === 'sheep') {
+    if (kind === 'population' || kind === 'sheep' || kind === 'oil') {
+      // points × weight, scaled to millions (population, sheep, or barrels).
       r.weightedPoints = Math.round((r.points * r.weight) / 1_000_000);
     } else if (kind === 'fifa_underdog') {
       const avg = r.teamCount > 0 ? r.weight / r.teamCount : 0;
