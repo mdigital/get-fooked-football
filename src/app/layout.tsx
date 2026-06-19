@@ -31,6 +31,9 @@ const NAV: Array<[string, string]> = [
   ['Prizes', '/prizes'],
 ];
 
+/** External BBC World Cup schedule — surfaced as the prominent "Predictions!" CTA. */
+const PREDICTIONS_URL = 'https://www.bbc.co.uk/sport/football/world-cup/schedule';
+
 // Runs synchronously before hydration so the page paints in the user's theme
 // from the very first frame — no flash of wrong colours.
 const THEME_BOOTSTRAP = `
@@ -109,7 +112,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {/* Triple-click this badge to flap. Mobile-friendly easter-egg trigger. */}
               <KonamiTrigger />
             </div>
-            <nav className="hidden gap-1 md:flex">
+            <nav className="hidden items-center gap-1 md:flex">
               {NAV.map(([label, href]) => (
                 <Link
                   key={href}
@@ -119,6 +122,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   {label}
                 </Link>
               ))}
+              <a
+                href={PREDICTIONS_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="ml-1 border-[2px] border-current bg-cga-magenta px-3 py-1 text-sm font-black uppercase tracking-wide text-cga-black shadow-cga hover:bg-cga-cyan"
+              >
+                Predictions! ↗
+              </a>
             </nav>
             <div className="flex items-center gap-2 text-sm">
               <ThemeToggle />
@@ -139,6 +150,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             </div>
           </div>
           <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4 pb-2 md:hidden">
+            <a
+              href={PREDICTIONS_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="whitespace-nowrap border-[2px] border-current bg-cga-magenta px-3 py-1 text-xs font-black uppercase text-cga-black shadow-cga"
+            >
+              Predictions! ↗
+            </a>
             {NAV.map(([label, href]) => (
               <Link key={href} href={href} className="whitespace-nowrap border-[2px] border-current px-3 py-1 text-xs font-bold uppercase">
                 {label}
