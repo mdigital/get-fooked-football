@@ -105,7 +105,7 @@ async function doResultsSync() {
     redirect(`/admin?tab=results&err=${encodeURIComponent(msg)}`);
   }
   redirect(
-    `/admin?tab=results&synced=${r.updated}&needsPens=${r.skipped['needs-pens']}&protectedCount=${r.skipped['human-edited']}`,
+    `/admin?tab=results&synced=${r.updated}&needsPens=${r.skipped['needs-pens']}&protectedCount=${r.skipped['human-edited']}&noData=${r.skipped['no-data']}&notFinished=${r.skipped['not-finished']}`,
   );
 }
 
@@ -219,10 +219,10 @@ const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; err?: string; synced?: string; needsPens?: string; protectedCount?: string }>;
+  searchParams: Promise<{ tab?: string; err?: string; synced?: string; needsPens?: string; protectedCount?: string; noData?: string; notFinished?: string }>;
 }) {
   await requireAdmin();
-  const { tab: rawTab, err, synced, needsPens, protectedCount } = await searchParams;
+  const { tab: rawTab, err, synced, needsPens, protectedCount, noData, notFinished } = await searchParams;
   const tab: TabId = (rawTab && TAB_IDS.has(rawTab) ? rawTab : 'players') as TabId;
 
   const [users, groupInvite, teams, fixtures, prizes, assignments] = await Promise.all([
@@ -427,6 +427,8 @@ export default async function AdminPage({
             <strong>clanker</strong> updated <strong>{synced}</strong> fixture{synced === '1' ? '' : 's'}.
             {Number(needsPens) > 0 && <> {needsPens} drawn KO game{needsPens === '1' ? '' : 's'} need penalties — enter those by hand.</>}
             {Number(protectedCount) > 0 && <> {protectedCount} left untouched (human-edited).</>}
+            {Number(notFinished) > 0 && <> {notFinished} not finished yet (or kicked off &lt;4h ago / no score posted).</>}
+            {Number(noData) > 0 && <> {noData} had no match in the feed (name mismatch or outside the feed window).</>}
           </p>
         )}
         <p className="mb-3 text-sm opacity-100">Enter scores as matches finish. For KO ties, fill in penalty scores too.</p>

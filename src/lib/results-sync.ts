@@ -91,6 +91,9 @@ export type SyncFixture = {
   id: number;
   stage: string;
   status: string;
+  /** Scheduled kick-off — used to treat a long-finished game as final even when
+   *  the source forgot to flip its status flag. */
+  kickoff: Date;
   homeTeamId: number | null;
   awayTeamId: number | null;
   homeScore: number | null;
@@ -124,13 +127,24 @@ function pairKey(a: number, b: number): string {
   return a < b ? `${a}:${b}` : `${b}:${a}`;
 }
 
+/** A game that kicked off at least this long ago is treated as over even if the
+ *  source hasn't set an explicit "finished" status (TheSportsDB often leaves it
+ *  blank). 4h comfortably covers 90' + stoppage + extra time + penalties. */
+export const FINISHED_AFTER_MS = 4 * 60 * 60 * 1000;
+
 export function planResultSync(args: {
   fixtures: SyncFixture[];
   teams: { id: number; code: string; name: string }[];
   externalResults: ExternalResult[];
   humanEditedFixtureIds: Set<number>;
+  /** Current time (ms epoch); injectable for tests. Defaults to now. */
+  now?: number;
+  /** How long after kickoff to treat a scored game as final. Defaults to 4h. */
+  finishedAfterMs?: number;
 }): { updates: SyncUpdate[]; skips: SyncSkip[] } {
   const match = buildTeamMatcher(args.teams);
+  const now = args.now ?? Date.now();
+  const finishedAfterMs = args.finishedAfterMs ?? FINISHED_AFTER_MS;
 
   // Index external results by unordered team pair, keeping the resolved ids so
   // we can orient scores to whichever side is our home team.
@@ -160,7 +174,11 @@ export function planResultSync(args: {
       skips.push({ fixtureId: f.id, reason: 'no-data' });
       continue;
     }
-    if (!found.r.finished || found.r.homeScore == null || found.r.awayScore == null) {
+    // The source's "finished" flag is unreliable (often blank), so also treat a
+    // game whose kickoff is well in the past as final, as long as it has scores.
+    const longSinceKickoff = now - f.kickoff.getTime() >= finishedAfterMs;
+    const isFinished = found.r.finished || longSinceKickoff;
+    if (!isFinished || found.r.homeScore == null || found.r.awayScore == null) {
       skips.push({ fixtureId: f.id, reason: 'not-finished' });
       continue;
     }

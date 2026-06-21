@@ -49,6 +49,7 @@ export async function runResultsSync(
       id: f.id,
       stage: f.stage,
       status: f.status,
+      kickoff: f.kickoff,
       homeTeamId: f.homeTeamId,
       awayTeamId: f.awayTeamId,
       homeScore: f.homeScore,
