@@ -47,12 +47,14 @@ describe('buildTeamMatcher', () => {
   });
 });
 
-/** Minimal fixture builder for planner tests. */
+/** Minimal fixture builder for planner tests. Kickoff defaults to "just now" so
+ *  the 4h time-based finalization doesn't kick in unless a test opts into it. */
 function fx(over: Partial<SyncFixture> & { id: number }): SyncFixture {
   return {
     id: over.id,
     stage: over.stage ?? 'GROUP',
     status: over.status ?? 'SCHEDULED',
+    kickoff: over.kickoff ?? new Date(),
     homeTeamId: 'homeTeamId' in over ? over.homeTeamId! : 1,
     awayTeamId: 'awayTeamId' in over ? over.awayTeamId! : 2,
     homeScore: over.homeScore ?? null,
@@ -61,6 +63,8 @@ function fx(over: Partial<SyncFixture> & { id: number }): SyncFixture {
     awayPens: over.awayPens ?? null,
   };
 }
+
+const FIVE_HOURS_AGO = new Date(Date.now() - 5 * 60 * 60 * 1000);
 
 function ext(over: Partial<ExternalResult>): ExternalResult {
   return {
@@ -110,14 +114,49 @@ describe('planResultSync', () => {
     expect(updates[0]).toMatchObject({ fixtureId: 10, homeScore: 2, awayScore: 1 });
   });
 
-  it('skips when the external match has not finished', () => {
+  it('skips when the external match has not finished and kicked off recently', () => {
     const { updates, skips } = planResultSync({
       ...base,
-      fixtures: [fx({ id: 10 })],
+      fixtures: [fx({ id: 10 })], // kickoff ~now
       externalResults: [ext({ homeScore: 1, awayScore: 0, finished: false })],
     });
     expect(updates).toEqual([]);
     expect(skips).toEqual([{ fixtureId: 10, reason: 'not-finished' }]);
+  });
+
+  it('finalizes a scored game >4h after kickoff even if the source status is blank', () => {
+    // The real-world bug: TheSportsDB leaves strStatus empty, so finished=false,
+    // yet the match is long over. After 4h we trust the scores.
+    const { updates, skips } = planResultSync({
+      ...base,
+      fixtures: [fx({ id: 10, kickoff: FIVE_HOURS_AGO })],
+      externalResults: [ext({ homeScore: 2, awayScore: 0, finished: false })],
+    });
+    expect(skips).toEqual([]);
+    expect(updates).toEqual([
+      { fixtureId: 10, stage: 'GROUP', status: 'FINISHED', homeScore: 2, awayScore: 0, homePens: null, awayPens: null },
+    ]);
+  });
+
+  it('does NOT finalize by time if the source still has no scores', () => {
+    const { updates, skips } = planResultSync({
+      ...base,
+      fixtures: [fx({ id: 10, kickoff: FIVE_HOURS_AGO })],
+      externalResults: [ext({ homeScore: null, awayScore: null, finished: false })],
+    });
+    expect(updates).toEqual([]);
+    expect(skips).toEqual([{ fixtureId: 10, reason: 'not-finished' }]);
+  });
+
+  it('still respects human edits even for a long-finished game', () => {
+    const { updates, skips } = planResultSync({
+      ...base,
+      humanEditedFixtureIds: new Set([10]),
+      fixtures: [fx({ id: 10, kickoff: FIVE_HOURS_AGO })],
+      externalResults: [ext({ homeScore: 2, awayScore: 0, finished: false })],
+    });
+    expect(updates).toEqual([]);
+    expect(skips).toEqual([{ fixtureId: 10, reason: 'human-edited' }]);
   });
 
   it('skips when no external data matches the fixture', () => {
