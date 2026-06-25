@@ -18,6 +18,7 @@ function loadSeed() {
       id: i + 1,
       stage: 'GROUP',
       status: 'SCHEDULED',
+      kickoff: f.kickoff,
       homeTeamId: idByCode.get(f.homeCode!)!,
       awayTeamId: idByCode.get(f.awayCode!)!,
       homeScore: null,
@@ -102,6 +103,8 @@ describe('every real TheSportsDB result auto-enters against the seed fixtures', 
     readFileSync(resolve(__dirname, 'fixtures/thesportsdb-rounds.json'), 'utf8'),
   );
   const externalResults = parseSportsDbEvents(snapshot);
+  // Fixed clock well after every group game, so the run is deterministic.
+  const NOW = new Date('2026-08-01T00:00:00Z').getTime();
 
   it('parses all 15 captured events as finished', () => {
     expect(externalResults).toHaveLength(15);
@@ -114,6 +117,7 @@ describe('every real TheSportsDB result auto-enters against the seed fixtures', 
       teams,
       externalResults,
       humanEditedFixtureIds: new Set(),
+      now: NOW,
     });
     // All 15 finished feed games turn into updates — if any team name failed to
     // match, that game would be missing and this count would drop.
@@ -135,6 +139,7 @@ describe('every real TheSportsDB result auto-enters against the seed fixtures', 
       teams: t,
       externalResults,
       humanEditedFixtureIds: new Set(),
+      now: NOW,
     });
     expect(updates).toHaveLength(1);
     expect(updates[0]).toMatchObject({ fixtureId: rsaKor.id, homeScore: 1, awayScore: 0, status: 'FINISHED' });
@@ -151,6 +156,7 @@ describe('every real TheSportsDB result auto-enters against the seed fixtures', 
       teams,
       externalResults,
       humanEditedFixtureIds: new Set([mexRsa.id]),
+      now: NOW,
     });
     expect(updates.find((u) => u.fixtureId === mexRsa.id)).toBeUndefined();
     expect(skips).toContainEqual({ fixtureId: mexRsa.id, reason: 'human-edited' });
