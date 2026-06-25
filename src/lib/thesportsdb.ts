@@ -16,6 +16,18 @@ const KEY = process.env.THESPORTSDB_KEY || '3';
 const LEAGUE_ID = process.env.THESPORTSDB_LEAGUE_ID || '4429';
 const SEASON = process.env.THESPORTSDB_SEASON || '2026';
 
+/**
+ * Rounds to pull. The free `eventsseason` endpoint only returns a rolling
+ * ~5-game window, so we fetch each round explicitly: group matchdays 1–3 plus
+ * TheSportsDB's cup-round codes for the knockouts (125 R16, 150 QF, 160 SF,
+ * 170 3rd-place, 200 Final — R32 games surface via eventspastleague as they
+ * finish). Override with THESPORTSDB_ROUNDS="1,2,3,..." if their codes differ.
+ */
+const ROUNDS = (process.env.THESPORTSDB_ROUNDS || '1,2,3,125,150,160,170,200')
+  .split(',')
+  .map((r) => r.trim())
+  .filter(Boolean);
+
 /** Status strings that mean the match is over and the score is final. */
 const FINISHED_RE = /(match\s*finished|full\s*time|^ft$|after\s*extra|^aet$|after\s*pen|^pen$|^fin)/i;
 
@@ -88,15 +100,26 @@ export function mergeResults(...lists: ExternalResult[][]): ExternalResult[] {
 let cache: { at: number; results: ExternalResult[] } | null = null;
 const TTL_MS = 60_000;
 
-/** Fetch and normalize the World Cup season's results. Cached for 60s. */
+/**
+ * Fetch and normalize all available World Cup results. Cached for 60s.
+ *
+ * Pulls every configured round plus the season window and recently-finished
+ * feed, then merges/dedupes by event id. Each request degrades to [] on
+ * failure so one rate-limited round can't sink the whole sync. Requests are
+ * sequenced (not parallel) to stay under the keyless tier's rate limit.
+ */
 export async function fetchWorldCupResults(now = Date.now()): Promise<ExternalResult[]> {
   if (cache && now - cache.at < TTL_MS) return cache.results;
-  const [season, past] = await Promise.all([
-    fetchEvents(`eventsseason.php?id=${LEAGUE_ID}&s=${SEASON}`),
-    // Recently-finished games that may have scrolled out of the season window.
-    fetchEvents(`eventspastleague.php?id=${LEAGUE_ID}`).catch(() => [] as ExternalResult[]),
-  ]);
-  const results = mergeResults(season, past);
+  const lists: ExternalResult[][] = [];
+  const safe = (p: string) => fetchEvents(p).catch(() => [] as ExternalResult[]);
+
+  lists.push(await safe(`eventsseason.php?id=${LEAGUE_ID}&s=${SEASON}`));
+  lists.push(await safe(`eventspastleague.php?id=${LEAGUE_ID}`));
+  for (const r of ROUNDS) {
+    lists.push(await safe(`eventsround.php?id=${LEAGUE_ID}&r=${r}&s=${SEASON}`));
+  }
+
+  const results = mergeResults(...lists);
   cache = { at: now, results };
   return results;
 }

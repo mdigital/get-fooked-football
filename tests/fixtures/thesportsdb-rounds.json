@@ -1,0 +1,20 @@
+{
+  "_comment": "Real snapshot of TheSportsDB's free-tier WC 2026 feed (league 4429), rounds 1-3, captured 2026-06-26. Raw event shape as returned by eventsround.php. Used to prove clanker's matcher+planner can auto-enter every game the source actually exposes — including 'South Africa vs South Korea', the one the user reported failing.",
+  "events": [
+    { "idEvent": "2391728", "strHomeTeam": "Mexico", "strAwayTeam": "South Africa", "intHomeScore": "2", "intAwayScore": "0", "strStatus": "FT", "dateEvent": "2026-06-11" },
+    { "idEvent": "2461103", "strHomeTeam": "South Korea", "strAwayTeam": "Czech Republic", "intHomeScore": "2", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-12" },
+    { "idEvent": "2461104", "strHomeTeam": "Canada", "strAwayTeam": "Bosnia-Herzegovina", "intHomeScore": "1", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-12" },
+    { "idEvent": "2391729", "strHomeTeam": "USA", "strAwayTeam": "Paraguay", "intHomeScore": "4", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-13" },
+    { "idEvent": "2391730", "strHomeTeam": "Brazil", "strAwayTeam": "Morocco", "intHomeScore": "1", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-13" },
+    { "idEvent": "2391746", "strHomeTeam": "Canada", "strAwayTeam": "Qatar", "intHomeScore": "6", "intAwayScore": "0", "strStatus": "FT", "dateEvent": "2026-06-18" },
+    { "idEvent": "2461109", "strHomeTeam": "Czech Republic", "strAwayTeam": "South Africa", "intHomeScore": "1", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-18" },
+    { "idEvent": "2461110", "strHomeTeam": "Switzerland", "strAwayTeam": "Bosnia-Herzegovina", "intHomeScore": "4", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-18" },
+    { "idEvent": "2391747", "strHomeTeam": "Mexico", "strAwayTeam": "South Korea", "intHomeScore": "1", "intAwayScore": "0", "strStatus": "FT", "dateEvent": "2026-06-19" },
+    { "idEvent": "2391749", "strHomeTeam": "Scotland", "strAwayTeam": "Morocco", "intHomeScore": "0", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-19" },
+    { "idEvent": "2391764", "strHomeTeam": "Morocco", "strAwayTeam": "Haiti", "intHomeScore": "4", "intAwayScore": "2", "strStatus": "FT", "dateEvent": "2026-06-24" },
+    { "idEvent": "2391765", "strHomeTeam": "Scotland", "strAwayTeam": "Brazil", "intHomeScore": "0", "intAwayScore": "3", "strStatus": "FT", "dateEvent": "2026-06-24" },
+    { "idEvent": "2391767", "strHomeTeam": "Switzerland", "strAwayTeam": "Canada", "intHomeScore": "2", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-24" },
+    { "idEvent": "2461115", "strHomeTeam": "Bosnia-Herzegovina", "strAwayTeam": "Qatar", "intHomeScore": "3", "intAwayScore": "1", "strStatus": "FT", "dateEvent": "2026-06-24" },
+    { "idEvent": "2391766", "strHomeTeam": "South Africa", "strAwayTeam": "South Korea", "intHomeScore": "1", "intAwayScore": "0", "strStatus": "FT", "dateEvent": "2026-06-25" }
+  ]
+}
