@@ -183,6 +183,51 @@ export interface SlotChoice {
 }
 
 /**
+ * FIFA's predetermined best-third-place allocation (Annex C of the tournament
+ * regulations). Which third a group winner faces is NOT derivable from the
+ * group constraints — multiple valid matchings exist — so FIFA fixes it with a
+ * table of all 495 qualifying-group combinations.
+ *
+ * Keyed by the sorted set of the eight qualifying groups (e.g. "BDEFIJKL");
+ * the value maps each group winner to the group whose third-placed team they
+ * face. Only the realized 2026 combination is encoded — any other combination
+ * returns null from `fifaThirdPlaceFills` and the caller falls back to manual
+ * admin choices. Add rows here from Annex C if more combinations are needed.
+ *
+ * Source: https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_knockout_stage
+ */
+const FIFA_THIRD_PLACE_TABLE: Record<string, Record<string, string>> = {
+  // Row 67: best thirds from groups B, D, E, F, I, J, K, L.
+  BDEFIJKL: { A: 'E', B: 'J', D: 'B', E: 'D', G: 'I', I: 'F', K: 'L', L: 'K' },
+};
+
+/**
+ * Resolve the best-third-place slots via FIFA's table. Returns one fill per
+ * slot, or null if the realized combination isn't in the table or any slot's
+ * winner group can't be resolved — in which case the caller should fall back to
+ * constraint-propagation + manual choices.
+ */
+export function fifaThirdPlaceFills(args: {
+  /** All eight qualifying thirds (group + team id), placed or not. */
+  qualifiedThirds: { teamId: number; group: string }[];
+  slots: { fixtureId: number; side: 'home' | 'away'; label: string; winnerGroup: string | null }[];
+}): SlotFill[] | null {
+  const comboKey = [...new Set(args.qualifiedThirds.map((t) => t.group))].sort().join('');
+  const table = FIFA_THIRD_PLACE_TABLE[comboKey];
+  if (!table) return null;
+  const teamByGroup = new Map(args.qualifiedThirds.map((t) => [t.group, t.teamId] as const));
+  const fills: SlotFill[] = [];
+  for (const slot of args.slots) {
+    if (!slot.winnerGroup) return null;
+    const thirdGroup = table[slot.winnerGroup];
+    const teamId = thirdGroup != null ? teamByGroup.get(thirdGroup) : undefined;
+    if (teamId == null) return null;
+    fills.push({ fixtureId: slot.fixtureId, side: slot.side, teamId, label: slot.label });
+  }
+  return fills;
+}
+
+/**
  * Compute every KO slot that can be filled from current results.
  *
  * - Group winners/runners-up fill once their group is complete.
@@ -214,11 +259,23 @@ export function planBracketUpdate(fixtures: Fixture[], teams: Team[]): { fills: 
   const placedInR32 = new Set(
     ko.filter((f) => f.stage === 'R32').flatMap((f) => [f.homeTeamId, f.awayTeamId]).filter((x): x is number => x != null),
   );
-  const qualifiedThirds = allGroupsComplete
-    ? rankThirdPlaces(standings).slice(0, 8).filter((t) => !placedInR32.has(t.teamId))
-    : [];
+  // Full set of eight qualifying thirds (for the FIFA combination key); the
+  // open pool below excludes any already placed in the R32.
+  const allQualifiedThirds = allGroupsComplete ? rankThirdPlaces(standings).slice(0, 8) : [];
+  const qualifiedThirds = allQualifiedThirds.filter((t) => !placedInR32.has(t.teamId));
+  const teamGroupById = new Map(teams.map((t) => [t.id, t.groupName] as const));
 
-  type ThirdSlot = { fixture: Fixture; side: 'home' | 'away'; label: string; groups: string[] };
+  // The group winner a third-place slot faces, read from the fixture's other
+  // side (a "Group X — 1st" seed label, or a team already filled there).
+  const winnerGroupForThird = (f: Fixture, thirdSide: 'home' | 'away'): string | null => {
+    const otherSide = thirdSide === 'home' ? 'away' : 'home';
+    const otherParsed = parseBracketLabel(otherSide === 'home' ? f.homeLabel : f.awayLabel);
+    if (otherParsed?.kind === 'seed') return otherParsed.group;
+    const otherTeamId = otherSide === 'home' ? f.homeTeamId : f.awayTeamId;
+    return otherTeamId != null ? teamGroupById.get(otherTeamId) ?? null : null;
+  };
+
+  type ThirdSlot = { fixture: Fixture; side: 'home' | 'away'; label: string; groups: string[]; winnerGroup: string | null };
   const thirdSlots: ThirdSlot[] = [];
 
   for (const f of ko) {
@@ -241,9 +298,23 @@ export function planBracketUpdate(fixtures: Fixture[], teams: Team[]): { fills: 
         const loserId = w === 'home' ? src.awayTeamId : src.homeTeamId;
         fills.push({ fixtureId: f.id, side, teamId: parsed.kind === 'winner' ? winnerId : loserId, label: label! });
       } else if (parsed.kind === 'third' && allGroupsComplete) {
-        thirdSlots.push({ fixture: f, side, label: label!, groups: parsed.groups });
+        thirdSlots.push({ fixture: f, side, label: label!, groups: parsed.groups, winnerGroup: winnerGroupForThird(f, side) });
       }
     }
+  }
+
+  // Preferred path: FIFA's predetermined Annex C table resolves the whole
+  // third-place allocation deterministically. Only the still-open slots get a
+  // fill (already-placed thirds are skipped above). If the combination isn't
+  // tabled, fall through to constraint-propagation + manual choices.
+  const fifaFills = fifaThirdPlaceFills({
+    qualifiedThirds: allQualifiedThirds.map((t) => ({ teamId: t.teamId, group: t.group })),
+    slots: thirdSlots.map((s) => ({ fixtureId: s.fixture.id, side: s.side, label: s.label, winnerGroup: s.winnerGroup })),
+  });
+  if (fifaFills && thirdSlots.length > 0) {
+    fills.push(...fifaFills);
+    fills.sort((a, b) => a.fixtureId - b.fixtureId || (a.side === 'home' ? 0 : 1) - (b.side === 'home' ? 0 : 1));
+    return { fills, choices };
   }
 
   // Constraint-propagate the third-place allocation: fill slots that are
