@@ -1,13 +1,20 @@
-'use client';
+"use client";
 
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 // Computed once on the client. This module's components only ever mount
 // inside the konami portal (which renders null on the server), so `window`
 // is always defined here.
 const IS_TOUCH_DEVICE =
-  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+  typeof window !== "undefined" &&
+  ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
 const W = 360;
 const H = 540;
@@ -19,14 +26,12 @@ const PIPE_GAP = 130;
 const PIPE_W = 50;
 const PIPE_INTERVAL_MS = 1400;
 
-const CGA_BG = '#000';
-const CGA_FG = '#fff';
-const CGA_CYAN = '#55ffff';
-const CGA_MAGENTA = '#ff55ff';
+const CGA_BG = "#000";
+const CGA_FG = "#fff";
+const CGA_CYAN = "#55ffff";
+const CGA_MAGENTA = "#ff55ff";
 
 type Pipe = { x: number; gapTop: number; cleared: boolean };
-
-const SCORE_MILESTONES = [25, 50, 75, 100];
 
 // Lazily-created, module-level so it survives the modal being closed and
 // reopened. Browsers suspend new AudioContexts until a user gesture resumes
@@ -35,11 +40,14 @@ const SCORE_MILESTONES = [25, 50, 75, 100];
 let audioCtx: AudioContext | null = null;
 
 function getAudioCtx(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (typeof window === "undefined") return null;
+  const Ctor =
+    window.AudioContext ??
+    (window as unknown as { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext;
   if (!Ctor) return null;
   if (!audioCtx) audioCtx = new Ctor();
-  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
   return audioCtx;
 }
 
@@ -51,7 +59,7 @@ function beep(freq: number, durationMs: number, delayMs = 0, gain = 0.06) {
   const t1 = t0 + durationMs / 1000;
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
-  osc.type = 'square';
+  osc.type = "square";
   osc.frequency.value = freq;
   gainNode.gain.setValueAtTime(0, t0);
   gainNode.gain.linearRampToValueAtTime(gain, t0 + 0.01);
@@ -62,10 +70,41 @@ function beep(freq: number, durationMs: number, delayMs = 0, gain = 0.06) {
   osc.stop(t1 + 0.02);
 }
 
-/** Two-note chime played when the score hits one of SCORE_MILESTONES. */
+/** Two-note chime played every 10 seconds survived. */
 function playMilestoneChime() {
   beep(880, 90);
   beep(1318.5, 120, 90);
+}
+
+// Reused <audio> element for the milestone sample so we don't allocate one
+// per hit. Lazily created on first use (after a user gesture has unlocked
+// audio via the first flap).
+let yaySfx: HTMLAudioElement | null = null;
+function playMilestoneYay() {
+  if (typeof window === 'undefined') return;
+  if (!yaySfx) yaySfx = new Audio('/yay.mp3');
+  yaySfx.currentTime = 0;
+  yaySfx.play().catch(() => {});
+}
+
+// From 100s on, every 10-second mark gets the "ahh" sample.
+function isAhhMilestone(sec: number) {
+  return sec >= 100 && sec % 10 === 0;
+}
+
+let ahhSfx: HTMLAudioElement | null = null;
+function playMilestoneAhh() {
+  if (typeof window === 'undefined') return;
+  if (!ahhSfx) ahhSfx = new Audio('/ahh.mp3');
+  ahhSfx.currentTime = 0;
+  ahhSfx.play().catch(() => {});
+}
+
+/** Descending three-note "wah-wah" played when the bird dies. */
+function playDeathSound() {
+  beep(392, 110, 0); // G4
+  beep(311.13, 110, 110); // D#4
+  beep(207.65, 260, 220); // G#3
 }
 
 /** Four-note ascending fanfare for a new personal best. */
@@ -87,6 +126,7 @@ type SaveResponse = {
   saved: { survivedMs: number; pipesCleared: number };
   myBestMs: number;
   myRank: number | null;
+  myAvatarSrc: string | null;
   board: BoardRow[];
 };
 
@@ -106,6 +146,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
     startedAt: number;
     runtimeMs: number;
     pipesCleared: number;
+    lastSoundSec: number;
     crashed: boolean;
   }>({
     birdY: H / 2,
@@ -116,6 +157,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
     startedAt: 0,
     runtimeMs: 0,
     pipesCleared: 0,
+    lastSoundSec: 0,
     crashed: false,
   });
   const [crashed, setCrashed] = useState(false);
@@ -149,11 +191,11 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       setCanvasCss({ w: Math.round(w), h: Math.round(h) });
     };
     recalc();
-    window.addEventListener('resize', recalc);
-    window.addEventListener('orientationchange', recalc);
+    window.addEventListener("resize", recalc);
+    window.addEventListener("orientationchange", recalc);
     return () => {
-      window.removeEventListener('resize', recalc);
-      window.removeEventListener('orientationchange', recalc);
+      window.removeEventListener("resize", recalc);
+      window.removeEventListener("orientationchange", recalc);
     };
   }, []);
 
@@ -168,6 +210,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       startedAt: 0,
       runtimeMs: 0,
       pipesCleared: 0,
+      lastSoundSec: 0,
       crashed: false,
     };
     setCrashed(false);
@@ -189,7 +232,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
 
@@ -203,12 +246,25 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       if (!s.crashed) {
         if (s.startedAt > 0) {
           s.runtimeMs = now - s.startedAt;
+
+          // Milestone sounds are keyed off whole seconds survived. Fire once
+          // each time the elapsed-seconds counter ticks up.
+          const sec = Math.floor(s.runtimeMs / 1000);
+          if (sec > s.lastSoundSec) {
+            s.lastSoundSec = sec;
+            if (isAhhMilestone(sec)) playMilestoneAhh();
+            else if (sec % 25 === 0) playMilestoneYay();
+            else if (sec % 10 === 0) playMilestoneChime();
+            else beep(1046.5, 60);
+          }
+
           s.birdV += GRAVITY * dt;
           s.birdY += s.birdV * dt;
           s.spawnTimerMs += dt * 1000;
           if (s.spawnTimerMs >= PIPE_INTERVAL_MS) {
             s.spawnTimerMs = 0;
-            const gapTop = 40 + Math.random() * (H - GROUND - 40 - PIPE_GAP - 40);
+            const gapTop =
+              40 + Math.random() * (H - GROUND - 40 - PIPE_GAP - 40);
             s.pipes.push({ x: W + PIPE_W, gapTop, cleared: false });
           }
           for (const p of s.pipes) p.x -= PIPE_SPEED * dt;
@@ -227,7 +283,6 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
                 if (!p.cleared) {
                   p.cleared = true;
                   s.pipesCleared += 1;
-                  if (SCORE_MILESTONES.includes(s.pipesCleared)) playMilestoneChime();
                 }
                 continue;
               }
@@ -250,6 +305,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       if (s.crashed) return;
       s.crashed = true;
       setCrashed(true);
+      playDeathSound();
       submitRun(s.runtimeMs, s.pipesCleared);
     }
 
@@ -258,48 +314,63 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const submitRun = useCallback(async (survivedMs: number, pipesCleared: number) => {
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      const r = await fetch('/api/flappy', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ survivedMs: Math.round(survivedMs), pipesCleared }),
-        cache: 'no-store',
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const data = (await r.json()) as SaveResponse;
-      setSubmitted(data);
-      if (data.saved.survivedMs > 0 && data.saved.survivedMs === data.myBestMs) {
-        playPersonalBestFanfare();
-        setIsNewBest(true);
+  const submitRun = useCallback(
+    async (survivedMs: number, pipesCleared: number) => {
+      setSubmitting(true);
+      setSubmitError(null);
+      try {
+        const r = await fetch("/api/flappy", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            survivedMs: Math.round(survivedMs),
+            pipesCleared,
+          }),
+          cache: "no-store",
+        });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = (await r.json()) as SaveResponse;
+        setSubmitted(data);
+        if (
+          data.saved.survivedMs > 0 &&
+          data.saved.survivedMs === data.myBestMs
+        ) {
+          playPersonalBestFanfare();
+          setIsNewBest(true);
+        }
+      } catch (e) {
+        setSubmitError(e instanceof Error ? e.message : "failed");
+      } finally {
+        setSubmitting(false);
       }
-    } catch (e) {
-      setSubmitError(e instanceof Error ? e.message : 'failed');
-    } finally {
-      setSubmitting(false);
-    }
-  }, []);
+    },
+    [],
+  );
 
   // Input — flap on space / click / arrow up. Restart on space when crashed.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
-      if (e.key === 'Escape') {
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      )
+        return;
+      if (e.key === "Escape") {
         e.preventDefault();
         onClose();
         return;
       }
-      if (e.key === ' ' || e.key === 'ArrowUp') {
+      if (e.key === " " || e.key === "ArrowUp") {
         e.preventDefault();
         if (stateRef.current.crashed) reset();
         else flap();
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
   }, [flap, onClose, reset]);
 
   return (
@@ -312,11 +383,11 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
         style={{
           width: canvasCss.w,
           height: canvasCss.h,
-          imageRendering: 'pixelated',
-          touchAction: 'none',
-          WebkitTapHighlightColor: 'transparent',
-          WebkitTouchCallout: 'none',
-          userSelect: 'none',
+          imageRendering: "pixelated",
+          touchAction: "none",
+          WebkitTapHighlightColor: "transparent",
+          WebkitTouchCallout: "none",
+          userSelect: "none",
         }}
         onPointerDown={(e) => {
           e.preventDefault();
@@ -325,7 +396,9 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
         }}
       />
       <div className="text-xs uppercase font-bold opacity-100 text-cga-white">
-        {IS_TOUCH_DEVICE ? 'tap to flap · ✕ to close' : 'space / click / ↑ to flap · esc to close'}
+        {IS_TOUCH_DEVICE
+          ? "tap to flap · ✕ to close"
+          : "space / click / ↑ to flap · esc to close"}
       </div>
       {crashed && (
         <GameOverPanel
@@ -363,18 +436,26 @@ function GameOverPanel({
     <div className="w-full border-[3px] border-cga-cyan p-3 text-cga-white">
       <div className="text-lg font-bold uppercase">Game over</div>
       <div className="mt-1 text-sm">
-        you lasted <strong>{formatMs(survivedMs)}</strong> · {pipes} pipe{pipes === 1 ? '' : 's'} cleared
+        you lasted <strong>{formatMs(survivedMs)}</strong> · {pipes} pipe
+        {pipes === 1 ? "" : "s"} cleared
       </div>
       {submitting && <div className="mt-2 text-xs opacity-100">saving…</div>}
-      {submitError && <div className="mt-2 text-xs text-cga-magenta">save failed: {submitError}</div>}
+      {submitError && (
+        <div className="mt-2 text-xs text-cga-magenta">
+          save failed: {submitError}
+        </div>
+      )}
       {isNewBest && (
         <div className="mt-2 flex flex-col items-center gap-1 border-[2px] border-cga-magenta p-2">
           <img
-            src="/flappy-high-score.png"
+            src={submitted?.myAvatarSrc ?? "/flappy-high-score.png"}
             alt="New high score!"
-            className="max-h-32 w-auto"
+            className="max-h-32 w-auto border-[2px] border-cga-magenta"
+            style={{ objectFit: "cover" }}
           />
-          <div className="text-xs font-bold uppercase text-cga-magenta">new high score!</div>
+          <div className="text-xs font-bold uppercase text-cga-magenta">
+            new high score!
+          </div>
         </div>
       )}
       {submitted && (
@@ -397,7 +478,7 @@ function GameOverPanel({
                 width={20}
                 height={20}
                 className="border-[2px] border-current"
-                style={{ width: 20, height: 20, objectFit: 'cover' }}
+                style={{ width: 20, height: 20, objectFit: "cover" }}
               />
               <span className="min-w-0 flex-1 truncate">{row.displayName}</span>
               <span className="tabular-nums">{formatMs(row.bestMs)}</span>
@@ -406,8 +487,12 @@ function GameOverPanel({
         </ol>
       )}
       <div className="mt-3 flex gap-2">
-        <button type="button" onClick={onRetry} className="brutal-btn-primary text-xs">
-          Play again{IS_TOUCH_DEVICE ? '' : ' (space)'}
+        <button
+          type="button"
+          onClick={onRetry}
+          className="brutal-btn-primary text-xs"
+        >
+          Play again{IS_TOUCH_DEVICE ? "" : " (space)"}
         </button>
       </div>
     </div>
@@ -419,27 +504,35 @@ function formatMs(ms: number): string {
   return `${(safe / 1000).toFixed(2)}s`;
 }
 
-function draw(ctx: CanvasRenderingContext2D, s: {
-  birdY: number;
-  pipes: Pipe[];
-  startedAt: number;
-  runtimeMs: number;
-  pipesCleared: number;
-  crashed: boolean;
-}) {
+function draw(
+  ctx: CanvasRenderingContext2D,
+  s: {
+    birdY: number;
+    pipes: Pipe[];
+    startedAt: number;
+    runtimeMs: number;
+    pipesCleared: number;
+    crashed: boolean;
+  },
+) {
   // Sky
   ctx.fillStyle = CGA_BG;
   ctx.fillRect(0, 0, W, H);
 
   // Subtle scanlines
-  ctx.fillStyle = 'rgba(255,255,255,0.04)';
+  ctx.fillStyle = "rgba(255,255,255,0.04)";
   for (let y = 0; y < H; y += 4) ctx.fillRect(0, y, W, 1);
 
   // Pipes
   ctx.fillStyle = CGA_CYAN;
   for (const p of s.pipes) {
     ctx.fillRect(Math.round(p.x), 0, PIPE_W, Math.round(p.gapTop));
-    ctx.fillRect(Math.round(p.x), Math.round(p.gapTop + PIPE_GAP), PIPE_W, H - GROUND - (p.gapTop + PIPE_GAP));
+    ctx.fillRect(
+      Math.round(p.x),
+      Math.round(p.gapTop + PIPE_GAP),
+      PIPE_W,
+      H - GROUND - (p.gapTop + PIPE_GAP),
+    );
   }
 
   // Ground
@@ -456,21 +549,25 @@ function draw(ctx: CanvasRenderingContext2D, s: {
 
   // HUD
   ctx.fillStyle = CGA_FG;
-  ctx.font = 'bold 14px ui-monospace, monospace';
-  ctx.textBaseline = 'top';
+  ctx.font = "bold 14px ui-monospace, monospace";
+  ctx.textBaseline = "top";
   ctx.fillText(formatMs(s.runtimeMs), 8, 8);
-  ctx.textAlign = 'right';
+  ctx.textAlign = "right";
   ctx.fillText(`${s.pipesCleared} pipes`, W - 8, 8);
-  ctx.textAlign = 'left';
+  ctx.textAlign = "left";
 
   if (s.startedAt === 0) {
-    ctx.textAlign = 'center';
+    ctx.textAlign = "center";
     ctx.fillStyle = CGA_CYAN;
-    ctx.font = 'bold 18px ui-monospace, monospace';
-    ctx.fillText(IS_TOUCH_DEVICE ? 'tap to flap' : 'press SPACE to flap', W / 2, H / 2 - 30);
+    ctx.font = "bold 18px ui-monospace, monospace";
+    ctx.fillText(
+      IS_TOUCH_DEVICE ? "tap to flap" : "press SPACE to flap",
+      W / 2,
+      H / 2 - 30,
+    );
     ctx.fillStyle = CGA_FG;
-    ctx.font = '12px ui-monospace, monospace';
-    ctx.fillText('clear pipes, dodge the floor', W / 2, H / 2);
-    ctx.textAlign = 'left';
+    ctx.font = "12px ui-monospace, monospace";
+    ctx.fillText("clear pipes, dodge the floor", W / 2, H / 2);
+    ctx.textAlign = "left";
   }
 }

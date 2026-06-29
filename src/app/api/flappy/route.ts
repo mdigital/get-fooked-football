@@ -92,10 +92,23 @@ export async function POST(req: Request) {
     // Personal best from board (or the just-saved row).
     const me = board.find((b) => b.userId === session.userId);
     const rank = me ? board.findIndex((b) => b.userId === session.userId) + 1 : null;
+
+    // Resolve the signed-in user's own avatar (they may not be in the top-N
+    // board, so look them up directly).
+    const [meUser] = await db
+      .select({ email: schema.users.email, avatarUrl: schema.users.avatarUrl })
+      .from(schema.users)
+      .where(eq(schema.users.id, session.userId!))
+      .limit(1);
+    const myAvatarSrc = meUser
+      ? avatarFor({ email: meUser.email, avatarUrl: meUser.avatarUrl }, 128)
+      : null;
+
     return NextResponse.json({
       saved: { survivedMs, pipesCleared },
       myBestMs: me?.bestMs ?? survivedMs,
       myRank: rank,
+      myAvatarSrc,
       board,
     });
   } catch (err) {
