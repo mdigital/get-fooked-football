@@ -1,7 +1,13 @@
 'use client';
 
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+// Computed once on the client. This module's components only ever mount
+// inside the konami portal (which renders null on the server), so `window`
+// is always defined here.
+const IS_TOUCH_DEVICE =
+  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
 const W = 360;
 const H = 540;
@@ -19,6 +25,56 @@ const CGA_CYAN = '#55ffff';
 const CGA_MAGENTA = '#ff55ff';
 
 type Pipe = { x: number; gapTop: number; cleared: boolean };
+
+const PIPE_MILESTONE_INTERVAL = 5;
+
+// Lazily-created, module-level so it survives the modal being closed and
+// reopened. Browsers suspend new AudioContexts until a user gesture resumes
+// them, so `getAudioCtx` is also called from `flap()` (a real pointer/key
+// event handler) to unlock it before the first programmatic beep fires.
+let audioCtx: AudioContext | null = null;
+
+function getAudioCtx(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!Ctor) return null;
+  if (!audioCtx) audioCtx = new Ctor();
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+/** A single retro square-wave blip. */
+function beep(freq: number, durationMs: number, delayMs = 0, gain = 0.06) {
+  const ctx = getAudioCtx();
+  if (!ctx) return;
+  const t0 = ctx.currentTime + delayMs / 1000;
+  const t1 = t0 + durationMs / 1000;
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  osc.type = 'square';
+  osc.frequency.value = freq;
+  gainNode.gain.setValueAtTime(0, t0);
+  gainNode.gain.linearRampToValueAtTime(gain, t0 + 0.01);
+  gainNode.gain.exponentialRampToValueAtTime(0.0001, t1);
+  osc.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  osc.start(t0);
+  osc.stop(t1 + 0.02);
+}
+
+/** Two-note chime every PIPE_MILESTONE_INTERVAL pipes cleared. */
+function playMilestoneChime() {
+  beep(880, 90);
+  beep(1318.5, 120, 90);
+}
+
+/** Four-note ascending fanfare for a new personal best. */
+function playPersonalBestFanfare() {
+  beep(523.25, 100, 0); // C5
+  beep(659.25, 100, 100); // E5
+  beep(783.99, 100, 200); // G5
+  beep(1046.5, 240, 300); // C6
+}
 
 type BoardRow = {
   userId: number;
@@ -66,6 +122,39 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
   const [submitted, setSubmitted] = useState<SaveResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [canvasCss, setCanvasCss] = useState({ w: W, h: H });
+
+  // Scale the canvas to fit short mobile viewports (the fixed 360x540
+  // internal resolution is otherwise taller than many phone screens, which
+  // forces a scroll to see the ground / HUD). Internal game coordinates are
+  // untouched — this only changes the CSS box the canvas is painted into.
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const recalc = () => {
+      const rect = canvas.getBoundingClientRect();
+      const viewportH = window.visualViewport?.height ?? window.innerHeight;
+      const viewportW = window.visualViewport?.width ?? window.innerWidth;
+      const reserveBelow = 40; // hint line + breathing room
+      const availableH = Math.max(200, viewportH - rect.top - reserveBelow);
+      const availableW = Math.max(200, viewportW - 24);
+      const ratio = W / H;
+      let w = Math.min(W, availableW);
+      let h = w / ratio;
+      if (h > availableH) {
+        h = availableH;
+        w = h * ratio;
+      }
+      setCanvasCss({ w: Math.round(w), h: Math.round(h) });
+    };
+    recalc();
+    window.addEventListener('resize', recalc);
+    window.addEventListener('orientationchange', recalc);
+    return () => {
+      window.removeEventListener('resize', recalc);
+      window.removeEventListener('orientationchange', recalc);
+    };
+  }, []);
 
   /** Reset to a fresh game. */
   const reset = useCallback(() => {
@@ -88,6 +177,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
 
   const flap = useCallback(() => {
     const s = stateRef.current;
+    getAudioCtx(); // unlock audio on this real user gesture
     if (s.crashed) return;
     if (s.startedAt === 0) s.startedAt = performance.now();
     s.birdV = FLAP_V;
@@ -135,6 +225,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
                 if (!p.cleared) {
                   p.cleared = true;
                   s.pipesCleared += 1;
+                  if (s.pipesCleared % PIPE_MILESTONE_INTERVAL === 0) playMilestoneChime();
                 }
                 continue;
               }
@@ -178,6 +269,9 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = (await r.json()) as SaveResponse;
       setSubmitted(data);
+      if (data.saved.survivedMs > 0 && data.saved.survivedMs === data.myBestMs) {
+        playPersonalBestFanfare();
+      }
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'failed');
     } finally {
@@ -211,15 +305,24 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
         ref={canvasRef}
         width={W}
         height={H}
-        className="border-[3px] border-cga-magenta shadow-cga max-w-full"
-        style={{ imageRendering: 'pixelated' }}
-        onPointerDown={() => {
+        className="border-[3px] border-cga-magenta shadow-cga"
+        style={{
+          width: canvasCss.w,
+          height: canvasCss.h,
+          imageRendering: 'pixelated',
+          touchAction: 'none',
+          WebkitTapHighlightColor: 'transparent',
+          WebkitTouchCallout: 'none',
+          userSelect: 'none',
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault();
           if (stateRef.current.crashed) reset();
           else flap();
         }}
       />
       <div className="text-xs uppercase font-bold opacity-100 text-cga-white">
-        space / click / ↑ to flap · esc to close
+        {IS_TOUCH_DEVICE ? 'tap to flap · ✕ to close' : 'space / click / ↑ to flap · esc to close'}
       </div>
       {crashed && (
         <GameOverPanel
@@ -288,7 +391,7 @@ function GameOverPanel({
       )}
       <div className="mt-3 flex gap-2">
         <button type="button" onClick={onRetry} className="brutal-btn-primary text-xs">
-          Play again (space)
+          Play again{IS_TOUCH_DEVICE ? '' : ' (space)'}
         </button>
       </div>
     </div>
@@ -348,7 +451,7 @@ function draw(ctx: CanvasRenderingContext2D, s: {
     ctx.textAlign = 'center';
     ctx.fillStyle = CGA_CYAN;
     ctx.font = 'bold 18px ui-monospace, monospace';
-    ctx.fillText('press SPACE to flap', W / 2, H / 2 - 30);
+    ctx.fillText(IS_TOUCH_DEVICE ? 'tap to flap' : 'press SPACE to flap', W / 2, H / 2 - 30);
     ctx.fillStyle = CGA_FG;
     ctx.font = '12px ui-monospace, monospace';
     ctx.fillText('clear pipes, dodge the floor', W / 2, H / 2);
