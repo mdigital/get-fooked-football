@@ -1,7 +1,13 @@
 'use client';
 
 /* eslint-disable @next/next/no-img-element */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+
+// Computed once on the client. This module's components only ever mount
+// inside the konami portal (which renders null on the server), so `window`
+// is always defined here.
+const IS_TOUCH_DEVICE =
+  typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
 const W = 360;
 const H = 540;
@@ -66,6 +72,39 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
   const [submitted, setSubmitted] = useState<SaveResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [canvasCss, setCanvasCss] = useState({ w: W, h: H });
+
+  // Scale the canvas to fit short mobile viewports (the fixed 360x540
+  // internal resolution is otherwise taller than many phone screens, which
+  // forces a scroll to see the ground / HUD). Internal game coordinates are
+  // untouched — this only changes the CSS box the canvas is painted into.
+  useLayoutEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const recalc = () => {
+      const rect = canvas.getBoundingClientRect();
+      const viewportH = window.visualViewport?.height ?? window.innerHeight;
+      const viewportW = window.visualViewport?.width ?? window.innerWidth;
+      const reserveBelow = 40; // hint line + breathing room
+      const availableH = Math.max(200, viewportH - rect.top - reserveBelow);
+      const availableW = Math.max(200, viewportW - 24);
+      const ratio = W / H;
+      let w = Math.min(W, availableW);
+      let h = w / ratio;
+      if (h > availableH) {
+        h = availableH;
+        w = h * ratio;
+      }
+      setCanvasCss({ w: Math.round(w), h: Math.round(h) });
+    };
+    recalc();
+    window.addEventListener('resize', recalc);
+    window.addEventListener('orientationchange', recalc);
+    return () => {
+      window.removeEventListener('resize', recalc);
+      window.removeEventListener('orientationchange', recalc);
+    };
+  }, []);
 
   /** Reset to a fresh game. */
   const reset = useCallback(() => {
@@ -211,15 +250,24 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
         ref={canvasRef}
         width={W}
         height={H}
-        className="border-[3px] border-cga-magenta shadow-cga max-w-full"
-        style={{ imageRendering: 'pixelated' }}
-        onPointerDown={() => {
+        className="border-[3px] border-cga-magenta shadow-cga"
+        style={{
+          width: canvasCss.w,
+          height: canvasCss.h,
+          imageRendering: 'pixelated',
+          touchAction: 'none',
+          WebkitTapHighlightColor: 'transparent',
+          WebkitTouchCallout: 'none',
+          userSelect: 'none',
+        }}
+        onPointerDown={(e) => {
+          e.preventDefault();
           if (stateRef.current.crashed) reset();
           else flap();
         }}
       />
       <div className="text-xs uppercase font-bold opacity-100 text-cga-white">
-        space / click / ↑ to flap · esc to close
+        {IS_TOUCH_DEVICE ? 'tap to flap · ✕ to close' : 'space / click / ↑ to flap · esc to close'}
       </div>
       {crashed && (
         <GameOverPanel
@@ -288,7 +336,7 @@ function GameOverPanel({
       )}
       <div className="mt-3 flex gap-2">
         <button type="button" onClick={onRetry} className="brutal-btn-primary text-xs">
-          Play again (space)
+          Play again{IS_TOUCH_DEVICE ? '' : ' (space)'}
         </button>
       </div>
     </div>
@@ -348,7 +396,7 @@ function draw(ctx: CanvasRenderingContext2D, s: {
     ctx.textAlign = 'center';
     ctx.fillStyle = CGA_CYAN;
     ctx.font = 'bold 18px ui-monospace, monospace';
-    ctx.fillText('press SPACE to flap', W / 2, H / 2 - 30);
+    ctx.fillText(IS_TOUCH_DEVICE ? 'tap to flap' : 'press SPACE to flap', W / 2, H / 2 - 30);
     ctx.fillStyle = CGA_FG;
     ctx.font = '12px ui-monospace, monospace';
     ctx.fillText('clear pipes, dodge the floor', W / 2, H / 2);
