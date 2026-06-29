@@ -26,7 +26,7 @@ const CGA_MAGENTA = '#ff55ff';
 
 type Pipe = { x: number; gapTop: number; cleared: boolean };
 
-const PIPE_MILESTONE_INTERVAL = 5;
+const SCORE_MILESTONES = [25, 50, 75, 100];
 
 // Lazily-created, module-level so it survives the modal being closed and
 // reopened. Browsers suspend new AudioContexts until a user gesture resumes
@@ -62,7 +62,7 @@ function beep(freq: number, durationMs: number, delayMs = 0, gain = 0.06) {
   osc.stop(t1 + 0.02);
 }
 
-/** Two-note chime every PIPE_MILESTONE_INTERVAL pipes cleared. */
+/** Two-note chime played when the score hits one of SCORE_MILESTONES. */
 function playMilestoneChime() {
   beep(880, 90);
   beep(1318.5, 120, 90);
@@ -122,6 +122,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
   const [submitted, setSubmitted] = useState<SaveResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isNewBest, setIsNewBest] = useState(false);
   const [canvasCss, setCanvasCss] = useState({ w: W, h: H });
 
   // Scale the canvas to fit short mobile viewports (the fixed 360x540
@@ -173,6 +174,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
     setSubmitted(null);
     setSubmitError(null);
     setSubmitting(false);
+    setIsNewBest(false);
   }, []);
 
   const flap = useCallback(() => {
@@ -225,7 +227,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
                 if (!p.cleared) {
                   p.cleared = true;
                   s.pipesCleared += 1;
-                  if (s.pipesCleared % PIPE_MILESTONE_INTERVAL === 0) playMilestoneChime();
+                  if (SCORE_MILESTONES.includes(s.pipesCleared)) playMilestoneChime();
                 }
                 continue;
               }
@@ -271,6 +273,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
       setSubmitted(data);
       if (data.saved.survivedMs > 0 && data.saved.survivedMs === data.myBestMs) {
         playPersonalBestFanfare();
+        setIsNewBest(true);
       }
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'failed');
@@ -331,6 +334,7 @@ export function FlappyGame({ onClose }: { onClose: () => void }) {
           submitting={submitting}
           submitError={submitError}
           submitted={submitted}
+          isNewBest={isNewBest}
           onRetry={reset}
         />
       )}
@@ -344,6 +348,7 @@ function GameOverPanel({
   submitting,
   submitError,
   submitted,
+  isNewBest,
   onRetry,
 }: {
   survivedMs: number;
@@ -351,6 +356,7 @@ function GameOverPanel({
   submitting: boolean;
   submitError: string | null;
   submitted: SaveResponse | null;
+  isNewBest: boolean;
   onRetry: () => void;
 }) {
   return (
@@ -361,6 +367,16 @@ function GameOverPanel({
       </div>
       {submitting && <div className="mt-2 text-xs opacity-100">saving…</div>}
       {submitError && <div className="mt-2 text-xs text-cga-magenta">save failed: {submitError}</div>}
+      {isNewBest && (
+        <div className="mt-2 flex flex-col items-center gap-1 border-[2px] border-cga-magenta p-2">
+          <img
+            src="/flappy-high-score.png"
+            alt="New high score!"
+            className="max-h-32 w-auto"
+          />
+          <div className="text-xs font-bold uppercase text-cga-magenta">new high score!</div>
+        </div>
+      )}
       {submitted && (
         <div className="mt-2 text-xs">
           personal best <strong>{formatMs(submitted.myBestMs)}</strong>
