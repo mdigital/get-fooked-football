@@ -137,15 +137,28 @@ export async function buildLeaderboard(kind: BoardKey): Promise<BoardRow[]> {
     db.select().from(schema.teamAssignments),
     db.select().from(schema.fixtures),
     // All rows, lifted included — computeSchadenfreude scores each curse only
-    // for matches that kicked off while it was active.
+    // for matches that kicked off while it was active. Rows rebuilt from the
+    // audit log (epoch start + lifted) are flagged so they pay but never hedge.
     db
       .select({
         userId: schema.teamCurses.userId,
         teamId: schema.teamCurses.teamId,
         scoresFrom: schema.teamCurses.scoresFrom,
         liftedAt: schema.teamCurses.liftedAt,
+        createdAt: schema.teamCurses.createdAt,
       })
-      .from(schema.teamCurses),
+      .from(schema.teamCurses)
+      .then((rows) =>
+        rows.map((r) => ({
+          userId: r.userId,
+          teamId: r.teamId,
+          scoresFrom: r.scoresFrom,
+          liftedAt: r.liftedAt,
+          // The migration stamped rebuilt rows with created_at = epoch; real
+          // rows (active-then-lifted included) always carry a genuine cast time.
+          reconstructed: r.createdAt.getTime() === 0,
+        })),
+      ),
     // Only the flappy board needs these — skip the join cost otherwise.
     kind === 'flappy'
       ? db

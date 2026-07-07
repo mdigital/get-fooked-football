@@ -28,6 +28,13 @@ export type CurseInput = {
   scoresFrom: Date;
   /** When the curse was lifted, or null while still active. */
   liftedAt: Date | null;
+  /**
+   * True for rows rebuilt from the audit log after the old hard-delete lift —
+   * their real cast time is lost. They still pay out on the loser side
+   * (grandfathered from the epoch) but never hedge-cancel: we can't prove the
+   * curse was active at kickoff, so the curser gets the benefit of the doubt.
+   */
+  reconstructed?: boolean;
 };
 
 function activeAt(c: CurseInput, at: Date): boolean {
@@ -76,9 +83,11 @@ export function computeSchadenfreude(
     );
     if (loserCursers.size === 0) continue;
     // Anyone whose curse on the WINNER was also active at kickoff hedged this
-    // match — cancel them out.
+    // match — cancel them out. Reconstructed rows never hedge (cast unknown).
     const winnerCursers = new Set(
-      (cursesByTeam.get(winnerTeamId) ?? []).filter((c) => activeAt(c, f.kickoff)).map((c) => c.userId),
+      (cursesByTeam.get(winnerTeamId) ?? [])
+        .filter((c) => !c.reconstructed && activeAt(c, f.kickoff))
+        .map((c) => c.userId),
     );
     for (const uid of loserCursers) {
       if (winnerCursers.has(uid)) continue;

@@ -155,4 +155,36 @@ describe('computeSchadenfreude', () => {
     expect(computeSchadenfreude(fixtures, [curse(10, 1, { scoresFrom: KICKOFF })]).get(10)).toBe(SCHADENFREUDE_PER_LOSS);
     expect(computeSchadenfreude(fixtures, [curse(11, 1, { liftedAt: KICKOFF })]).size).toBe(0);
   });
+
+  // --- reconstructed history (cast time lost to the old hard-delete) -----
+
+  it('a reconstructed curse still pays out when the cursed team lost', () => {
+    const fixtures = [
+      finishedMatch({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 0, awayScore: 2 }),
+    ];
+    const out = computeSchadenfreude(fixtures, [curse(10, 1, { liftedAt: AFTER, reconstructed: true })]);
+    expect(out.get(10)).toBe(SCHADENFREUDE_PER_LOSS);
+  });
+
+  it('a reconstructed curse never hedge-cancels: its cast time is unknown', () => {
+    // User 20's curse on the WINNER was rebuilt from the audit log (epoch
+    // start, real cast time lost). Give the curser the benefit of the doubt:
+    // it does not cancel their live curse on the loser.
+    const fixtures = [
+      finishedMatch({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 0, awayScore: 2 }),
+    ];
+    const curses = [
+      curse(20, 1), // live curse on the loser
+      curse(20, 2, { liftedAt: AFTER, reconstructed: true }), // rebuilt winner curse
+    ];
+    expect(computeSchadenfreude(fixtures, curses).get(20)).toBe(SCHADENFREUDE_PER_LOSS);
+  });
+
+  it('a real (non-reconstructed) lifted winner curse still hedges as usual', () => {
+    const fixtures = [
+      finishedMatch({ id: 1, stage: 'GROUP', homeTeamId: 1, awayTeamId: 2, homeScore: 0, awayScore: 2 }),
+    ];
+    const curses = [curse(20, 1), curse(20, 2, { liftedAt: AFTER })];
+    expect(computeSchadenfreude(fixtures, curses).size).toBe(0);
+  });
 });
