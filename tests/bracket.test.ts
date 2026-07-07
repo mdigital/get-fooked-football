@@ -177,15 +177,47 @@ describe('planBracketUpdate', () => {
     expect(fills).toContainEqual(expect.objectContaining({ fixtureId: 204, side: 'away', teamId: 4 }));
   });
 
-  it('does not touch slots that already have a team', () => {
+  it('does not re-fill a slot that already matches the source result', () => {
     const teams = [makeTeam({ id: 1, name: 'W' }), makeTeam({ id: 2, name: 'X' })];
     const sf = makeFixture({
       id: 201, stage: 'SF', homeLabel: 'Winner M97', awayLabel: 'Winner M98',
       homeTeamId: 1, awayTeamId: 2, homeScore: 2, awayScore: 1, status: 'FINISHED',
     });
-    const final = makeFixture({ id: 204, stage: 'FINAL', homeLabel: 'Winner M101', awayLabel: 'Winner M102', homeTeamId: 2 });
+    const final = makeFixture({ id: 204, stage: 'FINAL', homeLabel: 'Winner M101', awayLabel: 'Winner M102', homeTeamId: 1 });
     const { fills } = planBracketUpdate([sf, final], teams);
     expect(fills.filter((f) => f.fixtureId === 204 && f.side === 'home')).toEqual([]);
+  });
+
+  it('corrects a stale slot when the source result was fixed after propagation', () => {
+    // The Australia/Egypt bug: pens entered backwards, bracket propagated,
+    // pens corrected — the downstream slot must follow the corrected result.
+    const teams = [makeTeam({ id: 1, name: 'Argentina' }), makeTeam({ id: 2, name: 'Australia' }), makeTeam({ id: 3, name: 'Egypt' })];
+    const r32 = makeFixture({
+      id: 190, stage: 'R32', homeLabel: 'Group D — 2nd', awayLabel: 'Group G — 2nd',
+      homeTeamId: 2, awayTeamId: 3, homeScore: 1, awayScore: 1, homePens: 2, awayPens: 4, status: 'FINISHED',
+    });
+    const r16 = makeFixture({
+      id: 199, stage: 'R16', homeLabel: 'Winner M86', awayLabel: 'Winner M88',
+      homeTeamId: 1, awayTeamId: 2, // stale: Australia propagated before the pens fix
+    });
+    const { fills } = planBracketUpdate([r32, r16], teams);
+    expect(fills).toContainEqual(expect.objectContaining({ fixtureId: 199, side: 'away', teamId: 3 }));
+    // Home side (Argentina) is untouched — no source fixture present for M86.
+    expect(fills.filter((f) => f.fixtureId === 199 && f.side === 'home')).toEqual([]);
+  });
+
+  it('never corrects a slot once the downstream match has a result', () => {
+    const teams = [makeTeam({ id: 1, name: 'Argentina' }), makeTeam({ id: 2, name: 'Australia' }), makeTeam({ id: 3, name: 'Egypt' })];
+    const r32 = makeFixture({
+      id: 190, stage: 'R32', homeLabel: 'Group D — 2nd', awayLabel: 'Group G — 2nd',
+      homeTeamId: 2, awayTeamId: 3, homeScore: 1, awayScore: 1, homePens: 2, awayPens: 4, status: 'FINISHED',
+    });
+    const played = makeFixture({
+      id: 199, stage: 'R16', homeLabel: 'Winner M86', awayLabel: 'Winner M88',
+      homeTeamId: 1, awayTeamId: 2, homeScore: 2, awayScore: 0, status: 'FINISHED',
+    });
+    const { fills } = planBracketUpdate([r32, played], teams);
+    expect(fills.filter((f) => f.fixtureId === 199)).toEqual([]);
   });
 });
 

@@ -278,9 +278,18 @@ export function planBracketUpdate(fixtures: Fixture[], teams: Team[]): { fills: 
   type ThirdSlot = { fixture: Fixture; side: 'home' | 'away'; label: string; groups: string[]; winnerGroup: string | null };
   const thirdSlots: ThirdSlot[] = [];
 
+  // A filled slot may only be corrected while its own match is untouched —
+  // once it's LIVE/FINISHED or has scores, the slot is frozen.
+  const safeToCorrect = (f: Fixture) =>
+    f.status === 'SCHEDULED' && f.homeScore == null && f.awayScore == null;
+
   for (const f of ko) {
     for (const side of ['home', 'away'] as const) {
-      if ((side === 'home' ? f.homeTeamId : f.awayTeamId) != null) continue;
+      const current = side === 'home' ? f.homeTeamId : f.awayTeamId;
+      // Filled slots are re-checked (source results can be corrected after
+      // propagation — see the Australia/Egypt pens mix-up) but only while the
+      // downstream match hasn't started.
+      if (current != null && !safeToCorrect(f)) continue;
       const label = side === 'home' ? f.homeLabel : f.awayLabel;
       const parsed = parseBracketLabel(label);
       if (!parsed) continue;
@@ -288,7 +297,7 @@ export function planBracketUpdate(fixtures: Fixture[], teams: Team[]): { fills: 
       if (parsed.kind === 'seed') {
         if (!isComplete(parsed.group)) continue;
         const row = standings.get(parsed.group)![parsed.place - 1];
-        fills.push({ fixtureId: f.id, side, teamId: row.teamId, label: label! });
+        if (row.teamId !== current) fills.push({ fixtureId: f.id, side, teamId: row.teamId, label: label! });
       } else if (parsed.kind === 'winner' || parsed.kind === 'loser') {
         const src = byMatchNumber.get(parsed.match);
         if (!src || src.status !== 'FINISHED' || src.homeTeamId == null || src.awayTeamId == null) continue;
@@ -296,8 +305,9 @@ export function planBracketUpdate(fixtures: Fixture[], teams: Team[]): { fills: 
         if (w === 'draw') continue;
         const winnerId = w === 'home' ? src.homeTeamId : src.awayTeamId;
         const loserId = w === 'home' ? src.awayTeamId : src.homeTeamId;
-        fills.push({ fixtureId: f.id, side, teamId: parsed.kind === 'winner' ? winnerId : loserId, label: label! });
-      } else if (parsed.kind === 'third' && allGroupsComplete) {
+        const expected = parsed.kind === 'winner' ? winnerId : loserId;
+        if (expected !== current) fills.push({ fixtureId: f.id, side, teamId: expected, label: label! });
+      } else if (parsed.kind === 'third' && allGroupsComplete && current == null) {
         thirdSlots.push({ fixture: f, side, label: label!, groups: parsed.groups, winnerGroup: winnerGroupForThird(f, side) });
       }
     }
