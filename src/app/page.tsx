@@ -7,6 +7,7 @@ import { buildLeaderboard } from '@/lib/leaderboards';
 import { fmtNzDateTime, nzZoneAbbr } from '@/lib/format';
 import { tagClassForGroup } from '@/lib/group-color';
 import { getCommentCounts } from '@/lib/match-chat-counts';
+import { fifaMatchNumber } from '@/lib/bracket';
 import { MAX_BURN_LEN } from '@/lib/burns';
 import { postBurnAction } from './_burn-actions';
 import PolymarketWidget from './_polymarket-widget';
@@ -149,8 +150,12 @@ export default async function HomePage() {
                       Group {group}
                     </span>
                   ) : (
-                    <span className="inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
+                    <span className="inline-block whitespace-nowrap border-[2px] border-current px-1.5 py-0 uppercase font-bold">
                       {stage}
+                      {(() => {
+                        const n = fifaMatchNumber({ homeLabel: r.home_label as string | null, awayLabel: r.away_label as string | null });
+                        return n != null ? ` · M${n}` : '';
+                      })()}
                     </span>
                   )}
                 </div>

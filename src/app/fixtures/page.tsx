@@ -4,6 +4,7 @@ import { asc } from 'drizzle-orm';
 import { fmtNzDay, fmtNzTime, nzZoneAbbr } from '@/lib/format';
 import { tagClassForGroup } from '@/lib/group-color';
 import { getCommentCounts } from '@/lib/match-chat-counts';
+import { fifaMatchNumber } from '@/lib/bracket';
 import { ChatBadge } from '../_chat-badge';
 
 export const dynamic = 'force-dynamic';
@@ -97,8 +98,12 @@ export default async function FixturesPage() {
                         Group {f.groupName}
                       </span>
                     ) : (
-                      <span className="hidden sm:inline-block border-[2px] border-current px-1.5 py-0 uppercase font-bold">
-                        {stageLabel}
+                      <span
+                        className="inline-block whitespace-nowrap border-[2px] border-current px-1.5 py-0 uppercase font-bold"
+                        title={stageLabel}
+                      >
+                        {f.stage}
+                        {fifaMatchNumber(f) != null && ` · M${fifaMatchNumber(f)}`}
                       </span>
                     )}
                     {(homeOwner || awayOwner) && (
