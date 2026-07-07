@@ -136,7 +136,16 @@ export async function buildLeaderboard(kind: BoardKey): Promise<BoardRow[]> {
     db.select().from(schema.teams),
     db.select().from(schema.teamAssignments),
     db.select().from(schema.fixtures),
-    db.select({ userId: schema.teamCurses.userId, teamId: schema.teamCurses.teamId }).from(schema.teamCurses),
+    // All rows, lifted included — computeSchadenfreude scores each curse only
+    // for matches that kicked off while it was active.
+    db
+      .select({
+        userId: schema.teamCurses.userId,
+        teamId: schema.teamCurses.teamId,
+        scoresFrom: schema.teamCurses.scoresFrom,
+        liftedAt: schema.teamCurses.liftedAt,
+      })
+      .from(schema.teamCurses),
     // Only the flappy board needs these — skip the join cost otherwise.
     kind === 'flappy'
       ? db

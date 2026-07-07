@@ -1,4 +1,5 @@
 import { pgTable, serial, text, integer, boolean, timestamp, uniqueIndex, index, primaryKey, varchar, jsonb, numeric } from 'drizzle-orm/pg-core';
+import { sql } from 'drizzle-orm';
 
 export const users = pgTable(
   'users',
@@ -269,14 +270,23 @@ export const flappyScores = pgTable(
 export const teamCurses = pgTable(
   'team_curses',
   {
+    id: serial('id').primaryKey(),
     userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
     teamId: integer('team_id').notNull().references(() => teams.id, { onDelete: 'cascade' }),
     /** Optional flavour text — "your defense will leak like a sieve". */
     curseText: text('curse_text'),
+    /** When this curse starts paying out on the schadenfreude board. Normally
+     *  the cast time; the migration grandfathers pre-existing curses to the
+     *  epoch so nobody lost retroactive points when the rule tightened. */
+    scoresFrom: timestamp('scores_from', { withTimezone: true }).notNull().defaultNow(),
+    /** Soft-delete: set when the curse is lifted. Row is kept so points earned
+     *  while it was active survive (state-at-kickoff scoring). */
+    liftedAt: timestamp('lifted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.userId, t.teamId] }),
+    // One ACTIVE curse per (user, team); lifted history rows are unlimited.
+    activeIdx: uniqueIndex('team_curses_active_idx').on(t.userId, t.teamId).where(sql`${t.liftedAt} is null`),
     teamIdx: index('team_curses_team_idx').on(t.teamId),
   }),
 );

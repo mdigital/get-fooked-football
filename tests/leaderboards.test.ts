@@ -76,8 +76,8 @@ describe('computeLeaderboard', () => {
     // Robin curses team 6 (the filler that just lost 4 times). Sam curses
     // team 1, which won — so no points.
     const curses = [
-      { userId: 1, teamId: 6 },
-      { userId: 2, teamId: 1 },
+      { userId: 1, teamId: 6, scoresFrom: new Date(0), liftedAt: null },
+      { userId: 2, teamId: 1, scoresFrom: new Date(0), liftedAt: null },
     ];
     const board = computeLeaderboard('schadenfreude', users, teams, assignments, fixtures, curses);
     const robin = board.find((r) => r.name === 'Robin')!;

@@ -57,6 +57,13 @@
       "when": 1781225348322,
       "tag": "0007_fixed_raider",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783466724873,
+      "tag": "0008_safe_epoch",
+      "breakpoints": true
     }
   ]
 }

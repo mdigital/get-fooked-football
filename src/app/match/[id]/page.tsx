@@ -224,7 +224,7 @@ export default async function MatchPage({
         })
         .from(schema.teamCurses)
         .leftJoin(schema.users, eq(schema.users.id, schema.teamCurses.userId))
-        .where(inArray(schema.teamCurses.teamId, matchTeamIds))
+        .where(and(inArray(schema.teamCurses.teamId, matchTeamIds), isNull(schema.teamCurses.liftedAt)))
         .orderBy(asc(schema.teamCurses.createdAt))
     : [];
 

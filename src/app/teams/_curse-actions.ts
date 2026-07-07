@@ -1,7 +1,7 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db, schema } from '@/db/client';
 import { getSession } from '@/lib/session';
 import { logAudit } from '@/lib/audit';
@@ -32,18 +32,30 @@ export async function castCurseAction(formData: FormData) {
   if (!Number.isFinite(teamId) || teamId <= 0) redirect(to);
   const curseText = (String(formData.get('curse_text') ?? '').trim().slice(0, 140)) || null;
 
-  // Upsert: PK is (user_id, team_id). On conflict update curse_text.
-  await db
-    .insert(schema.teamCurses)
-    .values({ userId: s.userId!, teamId, curseText })
-    .onConflictDoUpdate({
-      target: [schema.teamCurses.userId, schema.teamCurses.teamId],
-      set: { curseText },
-    });
+  // Re-cast on the same team just updates the text of the ACTIVE curse;
+  // otherwise a fresh row starts a new scoring interval (state-at-kickoff:
+  // points only accrue for matches kicking off while the curse is active).
+  await db.transaction(async (tx) => {
+    const updated = await tx
+      .update(schema.teamCurses)
+      .set({ curseText })
+      .where(
+        and(
+          eq(schema.teamCurses.userId, s.userId!),
+          eq(schema.teamCurses.teamId, teamId),
+          isNull(schema.teamCurses.liftedAt),
+        ),
+      )
+      .returning({ id: schema.teamCurses.id });
+    if (updated.length === 0) {
+      await tx.insert(schema.teamCurses).values({ userId: s.userId!, teamId, curseText });
+    }
+  });
   redirect(to);
 }
 
-/** Lift your own curse on a team. */
+/** Lift your own curse on a team. Soft-delete — the row (and any points it
+ *  earned while active) survives; only future matches stop paying. */
 export async function liftCurseAction(formData: FormData) {
   const s = await getSession();
   if (!s.userId) redirect('/login');
@@ -53,8 +65,15 @@ export async function liftCurseAction(formData: FormData) {
   if (!Number.isFinite(teamId) || teamId <= 0) redirect(to);
 
   await db
-    .delete(schema.teamCurses)
-    .where(and(eq(schema.teamCurses.userId, s.userId!), eq(schema.teamCurses.teamId, teamId)));
+    .update(schema.teamCurses)
+    .set({ liftedAt: new Date() })
+    .where(
+      and(
+        eq(schema.teamCurses.userId, s.userId!),
+        eq(schema.teamCurses.teamId, teamId),
+        isNull(schema.teamCurses.liftedAt),
+      ),
+    );
   await logAudit({ userId: s.userId!, kind: 'curse.lift', detail: `team_id=${teamId}` });
   redirect(to);
 }

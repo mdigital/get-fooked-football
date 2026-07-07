@@ -1,5 +1,5 @@
 import { db, schema } from '@/db/client';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { getSession } from '@/lib/session';
 import { computeTeamScores } from '@/lib/scoring';
 import { tagClassForGroup } from '@/lib/group-color';
@@ -28,11 +28,14 @@ export default async function MyTeamsPage() {
     db.select().from(schema.teamAssignments),
     db.select().from(schema.fixtures),
     db.select().from(schema.users).orderBy(asc(schema.users.name)),
-    db.select({ userId: schema.teamCurses.userId, teamId: schema.teamCurses.teamId }).from(schema.teamCurses),
+    db
+      .select({ userId: schema.teamCurses.userId, teamId: schema.teamCurses.teamId })
+      .from(schema.teamCurses)
+      .where(isNull(schema.teamCurses.liftedAt)),
     db
       .select()
       .from(schema.teamCurses)
-      .where(eq(schema.teamCurses.userId, session.userId!)),
+      .where(and(eq(schema.teamCurses.userId, session.userId!), isNull(schema.teamCurses.liftedAt))),
   ]);
   // teamId -> curser count
   const cursesByTeam = new Map<number, number>();
