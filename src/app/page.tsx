@@ -11,6 +11,7 @@ import { fifaMatchNumber } from '@/lib/bracket';
 import { MAX_BURN_LEN } from '@/lib/burns';
 import { postBurnAction } from './_burn-actions';
 import PolymarketWidget from './_polymarket-widget';
+import WrapUpWidget from './_wrapup-widget';
 import LeaderboardWidget from './_leaderboard-widget';
 import NewsWidget from './_news-widget';
 import { ChatBadge } from './_chat-badge';
@@ -60,6 +61,9 @@ export default async function HomePage() {
 
   return (
     <div className="space-y-6">
+      {/* Tournament wrap-up — appears once the final is FINISHED. */}
+      <WrapUpWidget />
+
       <section className="brutal-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -107,7 +111,11 @@ export default async function HomePage() {
         </div>
         <ul className="mt-3 grid grid-cols-1 gap-2 md:grid-cols-2">
           {upcoming.rows.length === 0 && (
-            <li className="opacity-100">No fixtures yet — run the seed script.</li>
+            <li className="opacity-100">
+              {(fixtureCount.rows[0] as { c: number }).c > 0
+                ? 'That’s the lot — every match has been played. Se acabó.'
+                : 'No fixtures yet — run the seed script.'}
+            </li>
           )}
           {upcoming.rows.map((row, i) => {
             const r = row as Record<string, unknown>;

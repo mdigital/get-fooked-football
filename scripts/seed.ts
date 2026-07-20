@@ -85,8 +85,8 @@ async function ensurePrizes() {
   await db.delete(schema.prizes);
   await db.insert(schema.prizes).values([
     { name: 'The Big One',                 description: 'Overall tipping champion. Winner of the main league.',                                pctOfPot: '50.00', category: 'GRAND',   boardKey: 'overall',       sortOrder: 1 },
-    { name: 'Best Group Stage',            description: 'Most points earned during the group stage only.',                                     pctOfPot: '8.00',  category: 'SPECIAL',                            sortOrder: 4 },
-    { name: 'Best Knockout Stage',         description: 'Most points earned from the Round of 32 onwards.',                                    pctOfPot: '8.00',  category: 'SPECIAL',                            sortOrder: 5 },
+    { name: 'Best Group Stage',            description: 'Most points earned during the group stage only.',                                     pctOfPot: '8.00',  category: 'SPECIAL', boardKey: 'group_only',    sortOrder: 4 },
+    { name: 'Best Knockout Stage',         description: 'Most points earned from the Round of 32 onwards.',                                    pctOfPot: '8.00',  category: 'SPECIAL', boardKey: 'ko_only',       sortOrder: 5 },
     { name: 'The Wool Cup',                description: 'Best score weighted by total sheep across your teams.',                               pctOfPot: '6.00',  category: 'BOARD',   boardKey: 'sheep',         sortOrder: 2 },
     { name: 'The People’s Trophy',         description: 'Best score weighted by total population across your teams.',                          pctOfPot: '6.00',  category: 'BOARD',   boardKey: 'population',    sortOrder: 3 },
     { name: 'The InSwap League',           description: 'Winner of the photo competition. Thumbs up + hot-or-not tiebreaker.',                 pctOfPot: '6.00',  category: 'INSWAP',                             sortOrder: 50 },

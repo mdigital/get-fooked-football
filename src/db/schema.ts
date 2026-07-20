@@ -309,6 +309,18 @@ export const burns = pgTable(
   }),
 );
 
+export const payoutVotes = pgTable(
+  'payout_votes',
+  {
+    /** One ballot per user; PK doubles as the upsert target for vote changes. */
+    userId: integer('user_id').primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+    /** 'PAY' | 'NOT'. Anonymous: only aggregate percentages are ever rendered,
+     *  and no audit event is written (the audit feed is public). */
+    choice: text('choice').notNull(),
+    votedAt: timestamp('voted_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
 export const profileJabs = pgTable(
   'profile_jabs',
   {
