@@ -6,7 +6,7 @@ import { avatarFor } from '@/lib/avatar';
 import { displayName } from '@/lib/display-name';
 import { gatherNicknames, tallyNicknameVotes, type NicknameAuditRow } from '@/lib/nicknames';
 import { Avatar } from '../_avatar';
-import { toggleNicknameVoteAction } from './_actions';
+import NicknameVoteButton from './_vote-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -101,26 +101,12 @@ export default async function NicknamesPage() {
                     )}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="min-w-[3rem] text-right">
-                    <div className="text-2xl font-black tabular-nums">{n.votes}</div>
-                    <div className="text-[10px] uppercase font-bold opacity-100">votes</div>
-                  </div>
-                  <form action={toggleNicknameVoteAction}>
-                    <input type="hidden" name="nickname" value={n.key} />
-                    <button
-                      type="submit"
-                      className={
-                        voted
-                          ? 'border-[3px] border-current bg-cga-cyan px-3 py-2 text-sm font-black uppercase text-cga-black'
-                          : 'brutal-btn-pink text-sm'
-                      }
-                      title={voted ? 'Remove your vote' : 'Vote for this nickname'}
-                    >
-                      {voted ? '👍 Voted' : '👍 Vote'}
-                    </button>
-                  </form>
-                </div>
+                <NicknameVoteButton
+                  nickname={n.key}
+                  initialVoted={voted}
+                  initialCount={n.votes}
+                  signedIn={!!session.userId}
+                />
               </li>
             );
           })}
