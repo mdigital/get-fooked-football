@@ -71,6 +71,13 @@
       "when": 1784584702066,
       "tag": "0009_milky_cerise",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1784593291810,
+      "tag": "0010_foamy_plazm",
+      "breakpoints": true
     }
   ]
 }

@@ -321,6 +321,21 @@ export const payoutVotes = pgTable(
   },
 );
 
+export const nicknameVotes = pgTable(
+  'nickname_votes',
+  {
+    /** Normalized nickname key (lowercased, whitespace-collapsed) — see
+     *  normalizeNickname in src/lib/nicknames.ts. Not FK'd: nicknames come from
+     *  the audit log, not a table. */
+    nickname: text('nickname').notNull(),
+    userId: integer('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.nickname, t.userId] }), // one vote per user per nickname
+  }),
+);
+
 export const profileJabs = pgTable(
   'profile_jabs',
   {
@@ -353,3 +368,4 @@ export type FlappyScore = typeof flappyScores.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
 export type CommentReaction = typeof commentReactions.$inferSelect;
 export type TeamPreference = typeof teamPreferences.$inferSelect;
+export type NicknameVote = typeof nicknameVotes.$inferSelect;
