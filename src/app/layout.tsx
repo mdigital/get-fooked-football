@@ -28,6 +28,7 @@ const NAV: Array<[string, string]> = [
   ['My Teams', '/teams'],
   ['Boards', '/leaderboards'],
   ['InSwap', '/inswap'],
+  ['Nicknames', '/nicknames'],
   ['Prizes', '/prizes'],
 ];
 
